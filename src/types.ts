@@ -49,6 +49,12 @@ export type ActivityEntry = {
   createdAt: string;
 };
 
+export type CheatDay = {
+  id: string;
+  date: string;
+  createdAt: string;
+};
+
 export type TargetPlan = {
   from: string;
   daily: number;
@@ -89,6 +95,7 @@ export type AppData = {
   weights: WeightEntry[];
   measures: MeasureEntry[];
   activities: ActivityEntry[];
+  cheatDays: CheatDay[];
   removedLogIds: string[];
   removedFoodIds: string[];
   removedTweakIds: string[];

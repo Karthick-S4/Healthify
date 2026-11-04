@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { CheatToggle } from '../components/CheatToggle';
 import { MealEditor } from '../components/MealEditor';
 import { Ring } from '../components/Ring';
 import { buildReports, targetForDay, tightestRoom, type RoomReport } from '../lib/budget';
@@ -7,7 +8,7 @@ import { formatCount, formatKcal } from '../lib/format';
 import { closeFoods, correctQuery, kcalFor, searchFoods, suggestedGrams } from '../lib/foods';
 import { lookupCalories, type FoodLookup } from '../lib/lookupFood';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
-import { homeStreak, onTargetStreak, type OnTargetStreak } from '../lib/streaks';
+import { cheatDates, homeStreak, onTargetStreak, type OnTargetStreak } from '../lib/streaks';
 import { KIND_LABEL, mixedIdeas, suggestMeals } from '../lib/suggestions';
 import { useHealth } from '../state';
 import type { Food, LogEntry } from '../types';
@@ -22,6 +23,7 @@ type TodayViewProps = {
 };
 
 function targetNote(streak: OnTargetStreak): string {
+  if (streak.today === 'cheat') return 'Cheat day. Targets, eating out and activity don’t count against your streaks today.';
   if (streak.today === 'over') {
     return streak.ended > 0
       ? `Over today. That ends a ${streak.ended} day streak unless a meal is removed.`
@@ -87,8 +89,10 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   const todayLogs = health.data.logs.filter((log) => log.date === today).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const target = targetForDay(health.data, today);
   const eaten = reports.day.eaten;
-  const targetStreak = onTargetStreak(health.data.logs, today, (iso) => targetForDay(health.data, iso));
-  const home = homeStreak(health.data.logs, today);
+  const cheat = cheatDates(health.data.cheatDays);
+  const cheatToday = cheat.has(today);
+  const targetStreak = onTargetStreak(health.data.logs, today, (iso) => targetForDay(health.data, iso), cheat);
+  const home = homeStreak(health.data.logs, today, cheat);
   const weekDays = useMemo(() => {
     const range = weekRange(today);
     return eachDate(range.start, range.end);
@@ -124,7 +128,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     document.getElementById('food')?.focus();
   }
 
-  const light = tight.over || eaten > target;
+  const light = !cheatToday && (tight.over || eaten > target);
   const ideas = useMemo(() => {
     const all = suggestMeals({
       foods: health.foods,
@@ -339,16 +343,17 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
           <small>{home.brokeToday ? 'today' : home.days === 1 ? 'day' : 'days'}</small>
         </button>
       </div>
+      <CheatToggle />
       <p className="note">{targetNote(targetStreak)}</p>
 
       <div className="ring-block">
-        <Ring eaten={eaten} target={target} />
+        <Ring eaten={eaten} target={target} cheat={cheatToday} />
         <div className="ring-copy">
-          <strong className={eaten > target ? 'over-num' : undefined}>{formatKcal(eaten)}</strong>
-          <span>of {formatKcal(target)}</span>
+          <strong className={cheatToday ? 'cheat-num' : eaten > target ? 'over-num' : undefined}>{formatKcal(eaten)}</strong>
+          <span>{cheatToday ? 'kcal eaten' : `of ${formatKcal(target)}`}</span>
         </div>
       </div>
-      <p className={eaten > target || tight.over ? 'left over' : 'left'}>{roomSentence(tight)}</p>
+      <p className={cheatToday ? 'left cheat' : eaten > target || tight.over ? 'left over' : 'left'}>{cheatToday ? 'Target is off today. Enjoy.' : roomSentence(tight)}</p>
       </div>
 
       <div className="today-log">

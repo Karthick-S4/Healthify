@@ -1,9 +1,10 @@
 type RingProps = {
   eaten: number;
   target: number;
+  cheat?: boolean;
 };
 
-export function Ring({ eaten, target }: RingProps) {
+export function Ring({ eaten, target, cheat = false }: RingProps) {
   const radius = 52;
   const circumference = 2 * Math.PI * radius;
   const over = target > 0 && eaten > target;
@@ -24,7 +25,7 @@ export function Ring({ eaten, target }: RingProps) {
       <circle className="ring-track" cx="70" cy="70" r={radius} />
       {shown > 0 && (
         <circle
-          className={over ? 'ring-value over' : 'ring-value'}
+          className={cheat ? 'ring-value cheat' : over ? 'ring-value over' : 'ring-value'}
           cx="70"
           cy="70"
           r={radius}

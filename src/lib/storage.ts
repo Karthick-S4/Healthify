@@ -1,5 +1,5 @@
 import { eachDate, todayISO } from './dates';
-import type { ActivityEntry, AppData, CustomRange, Food, FoodTweak, LogEntry, MeasureEntry, Profile, ProfileBook, ProfileRecord, TargetPlan, WeightEntry } from '../types';
+import type { ActivityEntry, AppData, CheatDay, CustomRange, Food, FoodTweak, LogEntry, MeasureEntry, Profile, ProfileBook, ProfileRecord, TargetPlan, WeightEntry } from '../types';
 
 export const STORAGE_KEY = 'healthify.v1';
 export const BOOK_KEY = 'healthify.shared.v1';
@@ -19,6 +19,7 @@ export function freshData(): AppData {
     weights: [],
     measures: [],
     activities: [],
+    cheatDays: [],
     removedLogIds: [],
     removedFoodIds: [],
     removedTweakIds: [],
@@ -33,6 +34,11 @@ function entryBase(value: unknown): { id: string; date: string; createdAt: strin
   const raw = value as Record<string, unknown>;
   if (typeof raw.id !== 'string' || typeof raw.date !== 'string' || !ISO_DATE.test(raw.date)) return null;
   return { id: raw.id, date: raw.date, createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString(), raw };
+}
+
+function asCheatDay(value: unknown): CheatDay | null {
+  const base = entryBase(value);
+  return base ? { id: base.id, date: base.date, createdAt: base.createdAt } : null;
 }
 
 function asWeight(value: unknown): WeightEntry | null {
@@ -197,6 +203,7 @@ export function normalizeData(value: unknown): AppData {
     weights: listOf(data.weights, asWeight),
     measures: listOf(data.measures, asMeasure),
     activities: listOf(data.activities, asActivity),
+    cheatDays: listOf(data.cheatDays, asCheatDay),
     removedLogIds: asIds(data.removedLogIds),
     removedFoodIds: asIds(data.removedFoodIds),
     removedTweakIds: asIds(data.removedTweakIds),

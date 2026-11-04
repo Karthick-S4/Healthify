@@ -7,6 +7,7 @@ const LABEL: Record<WeekMark, string> = {
   open: 'not yet',
   skipped: 'nothing logged',
   future: 'coming up',
+  cheat: 'cheat day',
 };
 
 export function StarIcon({ mark = 'done' }: { mark?: WeekMark }) {
@@ -14,6 +15,11 @@ export function StarIcon({ mark = 'done' }: { mark?: WeekMark }) {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       {mark === 'missed' ? (
         <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" />
+      ) : mark === 'cheat' ? (
+        <>
+          <path d="M11 3.5l1.9 5.4 5.4 1.9-5.4 1.9L11 18.1l-1.9-5.4-5.4-1.9 5.4-1.9z" />
+          <path className="spark" d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
+        </>
       ) : mark === 'skipped' ? (
         <circle cx="12" cy="12" r="2.2" />
       ) : (

@@ -59,6 +59,7 @@ type HealthApi = {
   addMeasure: (date: string, part: string, cm: number) => void;
   addActivity: (date: string, name: string, minutes: number) => string;
   removeEntries: (ids: string[]) => void;
+  setCheatDay: (date: string, on: boolean) => void;
   undoLast: () => void;
   setUndo: (undo: Undo | null) => void;
   addCustomFood: (food: Food) => void;
@@ -419,6 +420,22 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateData]);
 
+  const setCheatDay = useCallback((date: string, on: boolean) => {
+    updateData((current) => {
+      const same = current.cheatDays.filter((entry) => entry.date === date);
+      if (on) {
+        if (same.length > 0) return current;
+        return { ...current, cheatDays: [...current.cheatDays, { id: crypto.randomUUID(), date, createdAt: new Date().toISOString() }] };
+      }
+      if (same.length === 0) return current;
+      return {
+        ...current,
+        cheatDays: current.cheatDays.filter((entry) => entry.date !== date),
+        removedLogIds: unique([...current.removedLogIds, ...same.map((entry) => entry.id)]),
+      };
+    });
+  }, [updateData]);
+
   const undoLast = useCallback(() => {
     setUndo((current) => {
       if (current) {
@@ -531,6 +548,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       addMeasure,
       addActivity,
       removeEntries,
+      setCheatDay,
       undoLast,
       setUndo,
       addCustomFood,
@@ -567,6 +585,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       addMeasure,
       addActivity,
       removeEntries,
+      setCheatDay,
       undoLast,
       addCustomFood,
       updateCustomFood,

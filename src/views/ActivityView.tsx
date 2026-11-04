@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { WeekStars, weekDone } from '../components/WeekStars';
 import { addDays, eachDate, formatLong, formatShort, formatWeekday, todayISO, weekRange } from '../lib/dates';
-import { activityDay, activityStreak, weekMarks } from '../lib/streaks';
+import { activityDay, activityStreak, cheatDates, weekMarks, withCheat } from '../lib/streaks';
 import { useHealth } from '../state';
 
 export function ActivityView() {
@@ -14,8 +14,9 @@ export function ActivityView() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
-  const streak = activityStreak(activities, today);
-  const marks = weekMarks(today, (iso) => activityDay(activities, iso));
+  const cheat = cheatDates(health.data.cheatDays);
+  const streak = activityStreak(activities, today, cheat);
+  const marks = weekMarks(today, withCheat(cheat, (iso) => activityDay(activities, iso)), 'skipped');
   const { start, end } = weekRange(today);
   const week = eachDate(start, end).map((iso) => ({
     iso,

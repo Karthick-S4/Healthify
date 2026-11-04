@@ -28,6 +28,8 @@
   --good-ink: #2a7656;
   --calm: #8f7fd6;
   --calm-ink: #5f4fae;
+  --cheat: #3b8fd9;
+  --cheat-ink: #1d5f9e;
   --danger: #c2334d;
   --on-accent: #ffffff;
   --brand-a: #a8435f;
@@ -75,6 +77,8 @@
     --good-ink: #9be3c0;
     --calm: #b4a8f0;
     --calm-ink: #cfc6ff;
+    --cheat: #7cc0ff;
+    --cheat-ink: #b5dcff;
     --danger: #fb7185;
     --brand-a: #f9b4c6;
     --brand-b: #f08aa3;
@@ -743,6 +747,26 @@ input[type='date'] { min-height: 50px; }
 .star-day.future path { fill: var(--track); stroke: none; }
 .star-day.missed path { fill: none; stroke: var(--alert); stroke-width: 2; }
 .star-day.skipped circle { fill: var(--muted); opacity: 0.45; }
+.star-day.cheat path { fill: var(--cheat); stroke: var(--cheat); stroke-width: 1; filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--cheat) 45%, transparent)); }
+.star-day.cheat span { color: var(--cheat-ink); }
+.cheat-toggle { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow), inset 0 1px 0 var(--glass-shine); }
+.cheat-toggle.on { background: color-mix(in srgb, var(--cheat) 16%, var(--glass)); border-color: color-mix(in srgb, var(--cheat) 45%, transparent); }
+.cheat-icon { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--cheat) 14%, transparent); }
+.cheat-icon svg { width: 24px; height: 24px; }
+.cheat-icon path { fill: var(--cheat); stroke: var(--cheat); stroke-width: 1; stroke-linejoin: round; }
+.cheat-toggle.used .cheat-icon { filter: grayscale(1); opacity: 0.55; }
+.cheat-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cheat-copy strong { font-size: 0.95rem; }
+.cheat-toggle.on .cheat-copy strong { color: var(--cheat-ink); }
+.cheat-copy small { color: var(--muted); font-size: 0.8rem; line-height: 1.35; }
+.switch { flex: none; position: relative; width: 52px; height: 32px; min-height: 0; padding: 0; border-radius: 999px; border: 0; background: var(--track); transition: background 0.2s; }
+.switch span { position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18); transition: transform 0.2s; }
+.switch[aria-checked='true'] { background: var(--cheat); }
+.switch[aria-checked='true'] span { transform: translateX(20px); }
+.switch:disabled { opacity: 0.45; }
+.ring-value.cheat { stroke: var(--cheat); filter: drop-shadow(0 3px 6px color-mix(in srgb, var(--cheat) 40%, transparent)); }
+.cheat-num, .card p.hero-left.cheat-num { color: var(--cheat-ink); }
+.left.cheat { color: var(--cheat-ink); background: color-mix(in srgb, var(--cheat) 14%, transparent); }
 
 button.tile { width: 100%; text-align: left; color: inherit; font: inherit; align-items: stretch; }
 .card p.tile-num { font-family: var(--rounded); font-size: 1.8rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; color: var(--ink); }
@@ -853,6 +877,8 @@ button.tile { width: 100%; text-align: left; color: inherit; font: inherit; alig
 .cal-day.near .cal-kcal { color: var(--good-ink); }
 .cal-day.over { background: color-mix(in srgb, var(--alert) 18%, transparent); border-color: color-mix(in srgb, var(--alert) 36%, transparent); }
 .cal-day.over .cal-kcal { color: var(--alert-ink); }
+.cal-day.cheat { background: color-mix(in srgb, var(--cheat) 16%, transparent); border-color: color-mix(in srgb, var(--cheat) 40%, transparent); }
+.cal-day.cheat .cal-kcal { color: var(--cheat-ink); }
 .cal-day.future { opacity: 0.55; }
 .cal-day.outside { opacity: 0.22; border-color: transparent; background: transparent; }
 .cal-day.today .cal-date { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
@@ -863,6 +889,7 @@ button.tile { width: 100%; text-align: left; color: inherit; font: inherit; alig
 .dot.under { background: var(--calm); }
 .dot.near { background: var(--good); }
 .dot.over { background: var(--alert); }
+.dot.cheat { background: var(--cheat); }
 .day-detail-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
 .card p.day-total { font-family: var(--rounded); font-size: 1.6rem; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
 .card p.day-total.over { color: var(--alert-ink); }
@@ -871,6 +898,7 @@ button.tile { width: 100%; text-align: left; color: inherit; font: inherit; alig
 .tone-chip.under { background: color-mix(in srgb, var(--calm) 18%, transparent); color: var(--calm-ink); }
 .tone-chip.near { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good-ink); }
 .tone-chip.over { background: color-mix(in srgb, var(--alert) 20%, transparent); color: var(--alert-ink); }
+.tone-chip.cheat { background: color-mix(in srgb, var(--cheat) 20%, transparent); color: var(--cheat-ink); }
 
 @media (min-width: 640px) {
   .streak-grid { grid-template-columns: repeat(3, 1fr); }

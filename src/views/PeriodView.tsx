@@ -4,6 +4,7 @@ import { MealEditor } from '../components/MealEditor';
 import { buildReports, pickRange, planOn, targetForDay } from '../lib/budget';
 import { addDays, addMonths, eachDate, formatLong, formatRange, parseISO, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
+import { cheatDates } from '../lib/streaks';
 import { useHealth } from '../state';
 import type { LogEntry, PeriodKind } from '../types';
 
@@ -11,12 +12,13 @@ type PeriodViewProps = {
   onOpenMore: () => void;
 };
 
-type DayTone = 'under' | 'near' | 'over' | 'empty' | 'future' | 'outside';
+type DayTone = 'under' | 'near' | 'over' | 'empty' | 'future' | 'outside' | 'cheat';
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const NEAR_SHARE = 0.85;
 
-function toneFor(eaten: number, target: number, logged: boolean): DayTone {
+function toneFor(eaten: number, target: number, logged: boolean, cheat = false): DayTone {
+  if (cheat) return 'cheat';
   if (!logged) return 'empty';
   if (eaten > target) return 'over';
   return eaten >= target * NEAR_SHARE ? 'near' : 'under';
@@ -51,7 +53,8 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
   const selectedLogs = byDay.get(selected) ?? [];
   const selectedEaten = selectedLogs.reduce((sum, log) => sum + log.kcal, 0);
   const selectedTarget = targetForDay(health.data, selected);
-  const selectedTone = toneFor(selectedEaten, selectedTarget, selectedLogs.length > 0);
+  const cheat = useMemo(() => cheatDates(health.data.cheatDays), [health.data.cheatDays]);
+  const selectedTone = toneFor(selectedEaten, selectedTarget, selectedLogs.length > 0, cheat.has(selected));
   const isCurrent = report.start <= today && today <= report.end;
   const title =
     kind === 'month' ? parseISO(report.start).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : formatRange(report.start, report.end);
@@ -157,7 +160,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
                   const logs = byDay.get(iso) ?? [];
                   const eaten = logs.reduce((sum, log) => sum + log.kcal, 0);
                   const inRange = iso >= report.start && iso <= report.end;
-                  const tone: DayTone = !inRange ? 'outside' : iso > today ? 'future' : toneFor(eaten, targetForDay(health.data, iso), logs.length > 0);
+                  const tone: DayTone = !inRange ? 'outside' : iso > today ? 'future' : toneFor(eaten, targetForDay(health.data, iso), logs.length > 0, cheat.has(iso));
                   const classes = ['cal-day', tone, iso === today ? 'today' : '', iso === selected ? 'picked' : ''].filter(Boolean).join(' ');
                   return (
                     <button
@@ -179,6 +182,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
                 <span className="dot under" /> Under
                 <span className="dot near" /> On target
                 <span className="dot over" /> Over
+                <span className="dot cheat" /> Cheat day
               </p>
             </section>
 
@@ -191,13 +195,15 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
                     <span> of {formatKcal(selectedTarget)} kcal</span>
                   </p>
                 </div>
-                {selectedLogs.length > 0 && (
+                {(selectedLogs.length > 0 || selectedTone === 'cheat') && (
                   <span className={`tone-chip ${selectedTone}`}>
-                    {selectedTone === 'over'
-                      ? `${formatKcal(selectedEaten - selectedTarget)} over`
-                      : selectedTone === 'near'
-                        ? 'On target'
-                        : `${formatKcal(selectedTarget - selectedEaten)} under`}
+                    {selectedTone === 'cheat'
+                      ? 'Cheat day'
+                      : selectedTone === 'over'
+                        ? `${formatKcal(selectedEaten - selectedTarget)} over`
+                        : selectedTone === 'near'
+                          ? 'On target'
+                          : `${formatKcal(selectedTarget - selectedEaten)} under`}
                   </span>
                 )}
               </div>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { CheatToggle } from '../components/CheatToggle';
 import { IconBack } from '../components/Icons';
 import { Ring } from '../components/Ring';
 import { TrendChart } from '../components/TrendChart';
@@ -9,6 +10,8 @@ import { formatKcal } from '../lib/format';
 import {
   activityDay,
   activityStreak,
+  cheatDates,
+  withCheat,
   homeDay,
   homeStreak,
   onTargetDay,
@@ -52,6 +55,7 @@ function longestRun(marks: { mark: WeekMark }[]): number {
   let best = 0;
   let run = 0;
   for (const { mark } of marks) {
+    if (mark === 'cheat') continue;
     run = mark === 'done' ? run + 1 : 0;
     best = Math.max(best, run);
   }
@@ -99,13 +103,15 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
   const target = targetForDay(data, today);
   const eaten = data.logs.filter((log) => log.date === today).reduce((sum, log) => sum + log.kcal, 0);
 
+  const cheat = useMemo(() => cheatDates(data.cheatDays), [data.cheatDays]);
+  const cheatToday = cheat.has(today);
   const streaks = useMemo(
     () => ({
-      onTarget: onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso)),
-      home: homeStreak(data.logs, today),
-      move: activityStreak(data.activities, today),
+      onTarget: onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso), cheat),
+      home: homeStreak(data.logs, today, cheat),
+      move: activityStreak(data.activities, today, cheat),
     }),
-    [data, today],
+    [data, today, cheat],
   );
 
   const weights = useMemo(() => [...data.weights].sort((a, b) => (a.date < b.date ? -1 : 1)), [data.weights]);
@@ -135,33 +141,42 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
       key: 'target',
       title: 'On target',
       days: streaks.onTarget.days,
-      note: targetOver ? 'Over today’s target, so the count starts again tomorrow.' : 'Days in a row at or under your calorie target.',
+      note: cheatToday
+        ? 'Cheat day today. The streak is safe.'
+        : targetOver
+          ? 'Over today’s target, so the count starts again tomorrow.'
+          : 'Days in a row at or under your calorie target.',
       warn: targetOver,
-      result: (iso) => {
+      result: withCheat(cheat, (iso) => {
         const day = onTargetDay(data.logs, iso, targetForDay(data, iso));
         return iso === today && day === 'done' ? 'empty' : day;
-      },
+      }),
       today,
     },
     {
       key: 'home',
       title: 'Home meals',
       days: streaks.home.days,
-      note: streaks.home.brokeToday ? 'Ate out today, so the count starts again tomorrow.' : 'Days in a row with only home food.',
+      note: cheatToday
+        ? 'Cheat day today. Eating out won’t break it.'
+        : streaks.home.brokeToday
+          ? 'Ate out today, so the count starts again tomorrow.'
+          : 'Days in a row with only home food.',
       warn: streaks.home.brokeToday,
-      result: (iso) => homeDay(data.logs, iso),
+      result: withCheat(cheat, (iso) => homeDay(data.logs, iso)),
       today,
     },
     {
       key: 'move',
       title: 'Activity',
       days: streaks.move.days,
-      note:
-        !streaks.move.doneToday && streaks.move.days > 0
+      note: cheatToday
+        ? 'Cheat day today. A rest day won’t break it.'
+        : !streaks.move.doneToday && streaks.move.days > 0
           ? 'Add an activity today to keep it going.'
           : 'Days in a row with any activity.',
       warn: false,
-      result: (iso) => activityDay(data.activities, iso),
+      result: withCheat(cheat, (iso) => activityDay(data.activities, iso)),
       today,
     },
   ];
@@ -189,16 +204,20 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
 
       <section className="card hero">
         <div className="hero-ring">
-          <Ring eaten={eaten} target={target} />
+          <Ring eaten={eaten} target={target} cheat={cheatToday} />
           <div className="ring-copy">
-            <strong className={eaten > target ? 'over-num' : undefined}>{formatKcal(eaten)}</strong>
-            <span>of {formatKcal(target)}</span>
+            <strong className={cheatToday ? 'cheat-num' : eaten > target ? 'over-num' : undefined}>{formatKcal(eaten)}</strong>
+            <span>{cheatToday ? 'kcal eaten' : `of ${formatKcal(target)}`}</span>
           </div>
         </div>
         <div className="hero-copy">
-          <p className="eyebrow">Calories today</p>
-          <p className={eaten > target ? 'hero-left over' : 'hero-left'}>
-            {eaten > target ? `${formatKcal(eaten - target)} kcal over` : `${formatKcal(target - eaten)} kcal left`}
+          <p className="eyebrow">{cheatToday ? 'Cheat day' : 'Calories today'}</p>
+          <p className={cheatToday ? 'hero-left cheat-num' : eaten > target ? 'hero-left over' : 'hero-left'}>
+            {cheatToday
+              ? 'Target is off today'
+              : eaten > target
+                ? `${formatKcal(eaten - target)} kcal over`
+                : `${formatKcal(target - eaten)} kcal left`}
           </p>
           <div className="composer-actions">
             <button type="button" className="primary" onClick={() => onOpen('food')}>
@@ -210,6 +229,8 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
           </div>
         </div>
       </section>
+
+      <CheatToggle />
 
       <h2 className="section-title">Streaks</h2>
       <div className="streak-grid">
@@ -230,6 +251,10 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
           <StarIcon mark="missed" />
         </span>
         missed
+        <span className="star-day cheat">
+          <StarIcon mark="cheat" />
+        </span>
+        cheat day
         <span className="star-day skipped">
           <StarIcon mark="skipped" />
         </span>

@@ -1,11 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { BUILT_IN_FOODS } from '../data/foods';
-import { buildReports, targetForDay } from '../lib/budget';
+import { buildReports } from '../lib/budget';
 import { eachDate, todayISO } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { kcalFor } from '../lib/foods';
-import { DAILY_MAX, DAILY_MIN, fromBackup } from '../lib/storage';
-import { homeStreak, onTargetStreak } from '../lib/streaks';
+import { DAILY_MAX, DAILY_MIN } from '../lib/storage';
 import { useHealth } from '../state';
 import type { Food } from '../types';
 
@@ -27,8 +26,6 @@ export function MoreView() {
   const [gramsDraft, setGramsDraft] = useState('');
   const [eraseText, setEraseText] = useState('');
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
-  const streak = onTargetStreak(health.data.logs, today, (iso) => targetForDay(health.data, iso));
-  const home = homeStreak(health.data.logs, today);
 
   const visibleFoods = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -120,16 +117,6 @@ export function MoreView() {
       </header>
       {message && <p className="preview">{message}</p>}
       {error && <p className="error">{error}</p>}
-
-      <section className="card" id="streaks">
-        <h2>Streaks</h2>
-        <p>
-          On target is {streak.days} {streak.days === 1 ? 'day' : 'days'}. A finished day counts when it has a log and the calories are at or under that day’s target. Going over, or leaving a day blank, ends it.
-        </p>
-        <p>
-          Home meals is {home.days} {home.days === 1 ? 'day' : 'days'}. One outside meal — restaurant, delivery, or Ate out — ends it. Days with no meals are skipped.
-        </p>
-      </section>
 
       <form className="card" onSubmit={saveTargets}>
         <h2>Targets</h2>
@@ -250,67 +237,6 @@ export function MoreView() {
             })}
           </ul>
         )}
-      </section>
-
-      <section className="card">
-        <h2>Backup</h2>
-        <p className="help">The file holds this profile’s meals. Restoring it replaces those meals on every device.</p>
-        <div className="composer-actions">
-          <button
-            type="button"
-            className="primary"
-            onClick={() => {
-              const blob = new Blob(
-                [JSON.stringify({ version: 2, profileName: health.profileName, diary: { ...health.data, pinHash: null } }, null, 2)],
-                { type: 'application/json' },
-              );
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-              link.download = `healthify-${today}.json`;
-              link.click();
-              URL.revokeObjectURL(url);
-            }}
-          >
-            Download backup
-          </button>
-          <label className="ghost file-button">
-            Restore
-            <input
-              type="file"
-              accept="application/json"
-              onChange={async (event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (!file) return;
-                try {
-                  const next = fromBackup(JSON.parse(await file.text()));
-                  if (!next) {
-                    setError('That file is not a Healthify backup.');
-                    setMessage(null);
-                    return;
-                  }
-                  health.importData(next);
-                  setError(null);
-                  setMessage('Backup restored on this profile.');
-                } catch {
-                  setError('That file could not be read.');
-                  setMessage(null);
-                }
-              }}
-            />
-          </label>
-        </div>
-      </section>
-
-      <section className="card">
-        <h2>Add it to a home screen</h2>
-        <ol className="steps">
-          <li>On iPhone or iPad, open this page in Safari.</li>
-          <li>Tap Share, then Add to Home Screen.</li>
-          <li>On a Windows or Mac laptop, use Chrome or Edge and install it from the address-bar icon.</li>
-        </ol>
-        <p className="help">After a new version is published, close Healthify and open it again. A profile’s meals show on the phone, tablet, and laptop.</p>
       </section>
 
       <section className="card">

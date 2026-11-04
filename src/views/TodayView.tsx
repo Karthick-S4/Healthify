@@ -281,7 +281,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   const pending = queue[0];
   const pendingKcal = pending?.kind === 'need-grams' && Number(gramsDraft) > 0 ? kcalFor(pending.food, Number(gramsDraft)) : null;
   const alternates = pending?.kind === 'unknown' ? closeFoods(pending.name, health.foods) : [];
-  const homeToday = todayLogs.some((log) => !log.outside);
 
   return (
     <div className="page today-page">
@@ -303,13 +302,11 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         </button>
         <button type="button" className={home.brokeToday ? 'chip warn' : 'chip'} onClick={onOpenMore}>
           <span>Home meals</span>
-          <strong>{home.days}</strong>
-          <small>{home.days === 1 ? 'day' : 'days'}</small>
+          <strong>{home.brokeToday ? 'Ended' : home.days}</strong>
+          <small>{home.brokeToday ? 'today' : home.days === 1 ? 'day' : 'days'}</small>
         </button>
       </div>
       <p className="note">{targetNote(targetStreak)}</p>
-      {home.brokeToday && <p className="note warn-text">Outside food today reset the home-meal streak.</p>}
-      {!home.brokeToday && homeToday && <p className="note">Home meals today.</p>}
 
       <div className="ring-block">
         <Ring eaten={eaten} target={target} />
@@ -371,7 +368,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
             Add
           </button>
         </div>
-        {ateOut && <p className="help">Everything in this box counts as outside food and resets the home-meal streak.</p>}
       </form>
       {error && <p className="error">{error}</p>}
 
@@ -554,17 +550,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         )}
       </section>
 
-      {!health.data.hintDismissed && (
-        <section className="card hint">
-          <h2>Keep Healthify one tap away</h2>
-          <p>
-            On iPhone or iPad, open this in Safari, tap Share, then Add to Home Screen. On a Windows or Mac laptop, Chrome or Edge can install it from the address-bar icon. After an update, close it and open it again.
-          </p>
-          <button type="button" className="ghost" onClick={health.dismissHint}>
-            Got it
-          </button>
-        </section>
-      )}
       </div>
 
       {editing && (

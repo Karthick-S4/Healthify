@@ -13,12 +13,12 @@ export function Ring({ eaten, target }: RingProps) {
     <svg className="ring" viewBox="0 0 140 140" role="img" aria-label={`${Math.round(eaten)} of ${Math.round(target)} calories eaten`}>
       <defs>
         <linearGradient id="ring-ok" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#2dd4bf" />
-          <stop offset="100%" stopColor="#12b76a" />
+          <stop offset="0%" stopColor="#f4b6a6" />
+          <stop offset="100%" stopColor="#d8627f" />
         </linearGradient>
         <linearGradient id="ring-over" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#fb7185" />
-          <stop offset="100%" stopColor="#f2683c" />
+          <stop offset="0%" stopColor="#f5b14c" />
+          <stop offset="100%" stopColor="#d9542b" />
         </linearGradient>
       </defs>
       <circle className="ring-track" cx="70" cy="70" r={radius} />

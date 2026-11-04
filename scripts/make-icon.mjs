@@ -55,9 +55,10 @@ function colorAt(nx, ny) {
   const distance = Math.hypot(cx, cy);
   let angle = Math.atan2(cy, cx) + Math.PI / 2;
   if (angle < 0) angle += Math.PI * 2;
-  if (distance <= 0.3 && distance >= 0.2 && angle <= Math.PI * 1.55) return [255, 253, 248, 255];
-  if (distance < 0.065) return [255, 253, 248, 255];
-  return [194, 77, 36, 255];
+  if (distance <= 0.3 && distance >= 0.2 && angle <= Math.PI * 1.55) return [255, 250, 251, 255];
+  if (distance < 0.065) return [255, 250, 251, 255];
+  const t = (nx + ny) / 2;
+  return [Math.round(244 + (199 - 244) * t), Math.round(182 + (77 - 182) * t), Math.round(166 + (110 - 166) * t), 255];
 }
 
 function render(size) {

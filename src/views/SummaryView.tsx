@@ -6,7 +6,17 @@ import { StarIcon, WeekStars, weekDone } from '../components/WeekStars';
 import { targetForDay } from '../lib/budget';
 import { addDays, formatLong, formatRange, formatShort, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
-import { activityDay, activityStreak, homeDay, homeStreak, onTargetDay, onTargetStreak, weekMarks } from '../lib/streaks';
+import {
+  activityDay,
+  activityStreak,
+  homeDay,
+  homeStreak,
+  onTargetDay,
+  onTargetStreak,
+  weekMarks,
+  type DayResult,
+  type WeekMark,
+} from '../lib/streaks';
 import { useHealth } from '../state';
 
 type SummaryViewProps = {
@@ -29,6 +39,59 @@ function signed(value: number, unit: string): string {
   return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded)} ${unit}`;
 }
 
+type StreakCardProps = {
+  title: string;
+  days: number;
+  note: string;
+  warn: boolean;
+  result: (iso: string) => DayResult;
+  today: string;
+};
+
+function longestRun(marks: { mark: WeekMark }[]): number {
+  let best = 0;
+  let run = 0;
+  for (const { mark } of marks) {
+    run = mark === 'done' ? run + 1 : 0;
+    best = Math.max(best, run);
+  }
+  return best;
+}
+
+function StreakCard({ title, days, note, warn, result, today }: StreakCardProps) {
+  const [week, setWeek] = useState(today);
+  const shown = weekRange(week);
+  const thisWeek = shown.start === weekRange(today).start;
+  const marks = weekMarks(today, result, 'skipped', week);
+  const count = thisWeek ? days : longestRun(marks);
+
+  return (
+    <section className={thisWeek && warn ? 'card streak-card warn' : 'card streak-card'}>
+      <div className="streak-head">
+        <p className="eyebrow">{title}</p>
+        <div className="week-nav">
+          <button type="button" aria-label={`${title}, previous week`} onClick={() => setWeek(addDays(shown.start, -7))}>
+            <IconBack />
+          </button>
+          <span>{thisWeek ? 'This week' : formatRange(shown.start, shown.end)}</span>
+          <button type="button" aria-label={`${title}, next week`} disabled={thisWeek} onClick={() => setWeek(addDays(shown.start, 7))}>
+            <IconBack />
+          </button>
+        </div>
+      </div>
+      <p className="streak-num">
+        {count}
+        <span> {count === 1 ? 'day' : 'days'} in a row</span>
+      </p>
+      <p className="note">
+        {thisWeek ? note : `Longest run that week. ${weekDone(marks)} of 7 days done.`}
+      </p>
+      <WeekStars marks={marks} />
+      {thisWeek && <p className="streak-week">{weekDone(marks)} of 7 this week</p>}
+    </section>
+  );
+}
+
 export function SummaryView({ onOpen }: SummaryViewProps) {
   const health = useHealth();
   const data = health.data;
@@ -36,28 +99,14 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
   const target = targetForDay(data, today);
   const eaten = data.logs.filter((log) => log.date === today).reduce((sum, log) => sum + log.kcal, 0);
 
-  const [week, setWeek] = useState(today);
-  const shownWeek = weekRange(week);
-  const thisWeek = shownWeek.start === weekRange(today).start;
-
-  const streaks = useMemo(() => {
-    const targetFor = (iso: string) => targetForDay(data, iso);
-    const onTarget = onTargetStreak(data.logs, today, targetFor);
-    const home = homeStreak(data.logs, today);
-    const move = activityStreak(data.activities, today);
-    const targetMarks = weekMarks(
-      today,
-      (iso) => {
-        const day = onTargetDay(data.logs, iso, targetFor(iso));
-        return iso === today && day === 'done' ? 'empty' : day;
-      },
-      'skipped',
-      week,
-    );
-    const homeMarks = weekMarks(today, (iso) => homeDay(data.logs, iso), 'skipped', week);
-    const moveMarks = weekMarks(today, (iso) => activityDay(data.activities, iso), 'missed', week);
-    return { onTarget, home, move, targetMarks, homeMarks, moveMarks };
-  }, [data, today, week]);
+  const streaks = useMemo(
+    () => ({
+      onTarget: onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso)),
+      home: homeStreak(data.logs, today),
+      move: activityStreak(data.activities, today),
+    }),
+    [data, today],
+  );
 
   const weights = useMemo(() => [...data.weights].sort((a, b) => (a.date < b.date ? -1 : 1)), [data.weights]);
   const latestWeight = weights[weights.length - 1];
@@ -81,22 +130,27 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
   }, [data.measures]);
 
   const targetOver = streaks.onTarget.today === 'over';
-  const streakCards = [
+  const streakCards: (StreakCardProps & { key: string })[] = [
     {
       key: 'target',
       title: 'On target',
       days: streaks.onTarget.days,
       note: targetOver ? 'Over today’s target, so the count starts again tomorrow.' : 'Days in a row at or under your calorie target.',
-      marks: streaks.targetMarks,
       warn: targetOver,
+      result: (iso) => {
+        const day = onTargetDay(data.logs, iso, targetForDay(data, iso));
+        return iso === today && day === 'done' ? 'empty' : day;
+      },
+      today,
     },
     {
       key: 'home',
       title: 'Home meals',
       days: streaks.home.days,
       note: streaks.home.brokeToday ? 'Ate out today, so the count starts again tomorrow.' : 'Days in a row with only home food.',
-      marks: streaks.homeMarks,
       warn: streaks.home.brokeToday,
+      result: (iso) => homeDay(data.logs, iso),
+      today,
     },
     {
       key: 'move',
@@ -106,8 +160,9 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
         !streaks.move.doneToday && streaks.move.days > 0
           ? 'Add an activity today to keep it going.'
           : 'Days in a row with any activity.',
-      marks: streaks.moveMarks,
       warn: false,
+      result: (iso) => activityDay(data.activities, iso),
+      today,
     },
   ];
 
@@ -156,34 +211,10 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
         </div>
       </section>
 
-      <div className="section-head">
-        <h2 className="section-title">Streaks</h2>
-        <div className="week-nav">
-          <button type="button" aria-label="Previous week" onClick={() => setWeek(addDays(shownWeek.start, -7))}>
-            <IconBack />
-          </button>
-          <span>{thisWeek ? 'This week' : formatRange(shownWeek.start, shownWeek.end)}</span>
-          <button type="button" aria-label="Next week" disabled={thisWeek} onClick={() => setWeek(addDays(shownWeek.start, 7))}>
-            <IconBack />
-          </button>
-        </div>
-      </div>
+      <h2 className="section-title">Streaks</h2>
       <div className="streak-grid">
-        {streakCards.map((card) => (
-          <section key={card.key} className={card.warn ? 'card streak-card warn' : 'card streak-card'}>
-            <div className="streak-head">
-              <p className="eyebrow">{card.title}</p>
-              <p className="streak-week">
-                {weekDone(card.marks)} of 7 {thisWeek ? 'this week' : 'that week'}
-              </p>
-            </div>
-            <p className="streak-num">
-              {card.days}
-              <span> {card.days === 1 ? 'day' : 'days'} in a row</span>
-            </p>
-            <p className="note">{card.note}</p>
-            <WeekStars marks={card.marks} />
-          </section>
+        {streakCards.map(({ key, ...card }) => (
+          <StreakCard key={key} {...card} />
         ))}
       </div>
       <p className="star-legend">

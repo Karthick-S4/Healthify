@@ -110,9 +110,9 @@ function Shell() {
           </div>
         )}
         <nav aria-label="Sections">
-          <p className="side-brand" aria-hidden="true">
+          <button type="button" className="side-brand" aria-label="Healthify, go to Summary" onClick={() => setView('summary')}>
             Healthify
-          </p>
+          </button>
           {TABS.map((item) => (
             <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>
               {item.icon}

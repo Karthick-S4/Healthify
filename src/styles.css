@@ -434,6 +434,11 @@ input:focus {
 }
 
 .composer-actions, .sheet-actions, .pager { display: flex; gap: 8px; }
+.food-suggest { display: flex; flex-wrap: wrap; gap: 6px; }
+.food-suggest .pill { display: inline-flex; align-items: baseline; gap: 6px; min-height: 36px; padding: 8px 12px; font-size: 0.88rem; }
+.food-suggest small { color: var(--muted); font-size: 0.75rem; font-weight: 550; }
+.streak-card .week-nav span { min-width: 0; }
+.streak-card .week-nav button { width: 30px; height: 30px; }
 .amount-row { display: flex; gap: 8px; align-items: center; }
 .amount-row input { flex: 1; min-width: 0; }
 .unit-toggle {
@@ -817,7 +822,7 @@ button.tile { width: 100%; text-align: left; color: inherit; font: inherit; alig
 .trend-tip rect { fill: var(--ink); opacity: 0.88; }
 .trend-tip text { fill: var(--bg); font-size: 11px; font-weight: 700; font-family: var(--sans); }
 
-.side-brand { display: none; }
+.dock nav .side-brand { display: none; }
 
 .history-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .calendar-card { gap: 10px; }
@@ -1016,8 +1021,12 @@ button:focus-visible, input:focus-visible {
     border-radius: 16px;
     font-size: 0.95rem;
   }
-  .side-brand {
+  .dock nav .side-brand,
+  .dock nav .side-brand:hover {
     display: block;
+    min-height: 0;
+    text-align: left;
+    cursor: pointer;
     padding: 4px 14px 14px;
     font-family: var(--display);
     font-style: italic;

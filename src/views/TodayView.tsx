@@ -4,7 +4,7 @@ import { Ring } from '../components/Ring';
 import { buildReports, targetForDay, tightestRoom, type RoomReport } from '../lib/budget';
 import { eachDate, formatLong, formatShort, formatWeekday, todayISO, weekRange } from '../lib/dates';
 import { formatCount, formatKcal } from '../lib/format';
-import { closeFoods, correctQuery, kcalFor, suggestedGrams } from '../lib/foods';
+import { closeFoods, correctQuery, kcalFor, searchFoods, suggestedGrams } from '../lib/foods';
 import { lookupCalories, type FoodLookup } from '../lib/lookupFood';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
 import { homeStreak, onTargetStreak, type OnTargetStreak } from '../lib/streaks';
@@ -106,6 +106,23 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     const kcal = shown.reduce((sum, hit) => sum + hit.kcal, 0);
     return `${shown.map((hit) => hit.title).join(' + ')} · ${formatKcal(kcal)} kcal`;
   }, [amount, draft, health.foods, measure, queue.length]);
+
+  const typing = useMemo(() => {
+    const segment = /^(.*(?:,|\+|\band\b)\s*)?(.*)$/i.exec(draft) ?? ['', '', draft];
+    const quantity = /^(\s*\d+(?:\.\d+)?\s*(?:x\s*)?)?(.*)$/i.exec(segment[2] ?? '') ?? ['', '', ''];
+    const term = (quantity[2] ?? '').trim();
+    const prefix = (segment[1] ?? '') + (quantity[1] ?? '');
+    if (term.length < 2 || queue.length > 0) return { prefix, foods: [] as Food[] };
+    const found = searchFoods(term, health.foods, 5);
+    const known = found.some((food) => food.aliases.includes(term.toLowerCase()));
+    return { prefix, foods: known ? [] : found };
+  }, [draft, health.foods, queue.length]);
+
+  function pickSuggestion(food: Food) {
+    setDraft(`${typing.prefix}${food.name.toLowerCase()}`);
+    setError(null);
+    document.getElementById('food')?.focus();
+  }
 
   const light = tight.over || eaten > target;
   const ideas = useMemo(() => {
@@ -351,6 +368,18 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
             setError(null);
           }}
         />
+        {typing.foods.length > 0 && (
+          <div className="food-suggest" aria-label="Matching foods">
+            {typing.foods.map((food) => (
+              <button key={food.id} type="button" className="pill" onClick={() => pickSuggestion(food)}>
+                {food.name}
+                <small>
+                  {formatKcal(kcalFor(food, food.pieceGrams))} kcal per {food.pieceLabel}
+                </small>
+              </button>
+            ))}
+          </div>
+        )}
         <label className="field-label" htmlFor="amount">
           Amount
         </label>

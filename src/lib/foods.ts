@@ -180,3 +180,8 @@ export function allFoods(data: Pick<AppData, 'customFoods' | 'tweaks'>): Food[] 
 export function kcalFor(food: Food, grams: number): number {
   return Math.max(0, Math.round((food.kcalPer100g * grams) / 100));
 }
+
+export function proteinFor(food: Food, grams: number): number | null {
+  if (food.proteinPer100g == null) return null;
+  return Math.max(0, (food.proteinPer100g * grams) / 100);
+}

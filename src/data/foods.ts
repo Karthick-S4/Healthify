@@ -77,7 +77,13 @@ const ROWS: Row[] = [
   ['chole', 'Chole', 'Mains', 160, 180, 'bowl', ['chana masala', 'chickpea curry'], { bowlGrams: 180 }],
   ['chicken-curry', 'Chicken curry', 'Mains', 175, 180, 'bowl', ['chicken'], { bowlGrams: 180 }],
   ['chicken-breast', 'Chicken breast', 'Mains', 165, 100, 'piece', ['grilled chicken']],
-  ['fish-curry', 'Fish curry', 'Mains', 140, 180, 'bowl', [], { bowlGrams: 180 }],
+  ['fish-curry', 'Fish curry', 'Mains', 140, 180, 'bowl', ['fish'], { bowlGrams: 180 }],
+  ['fish-fry', 'Fish fry', 'Mains', 200, 80, 'piece', ['meen varuval']],
+  ['paneer-bhurji', 'Paneer bhurji', 'Mains', 220, 150, 'bowl', [], { bowlGrams: 150 }],
+  ['soya-curry', 'Soya chunks curry', 'Mains', 140, 150, 'bowl', ['soya curry', 'soya chunks', 'meal maker'], { bowlGrams: 150 }],
+  ['sundal', 'Sundal', 'Snacks', 160, 100, 'bowl', ['chickpea sundal', 'kondakadalai sundal'], { bowlGrams: 100 }],
+  ['sprouts', 'Sprouts salad', 'Snacks', 60, 150, 'bowl', ['sprouts', 'moong sprouts'], { bowlGrams: 150 }],
+  ['egg-white', 'Egg white', 'Breakfast', 52, 33, 'egg white', ['egg whites']],
   ['egg-curry', 'Egg curry', 'Mains', 150, 180, 'bowl', [], { bowlGrams: 180 }],
   ['veg-curry', 'Veg curry', 'Mains', 110, 150, 'bowl', ['vegetable curry', 'mixed veg'], { bowlGrams: 150 }],
   ['paneer-butter', 'Paneer butter masala', 'Mains', 230, 180, 'bowl', ['paneer butter'], { bowlGrams: 180 }],
@@ -118,6 +124,25 @@ const ROWS: Row[] = [
   ['badam-milk', 'Badam milk', 'Drinks', 110, 200, 'glass', [], { cupGrams: 200 }],
 ];
 
+const PROTEIN_PER_100G: Record<string, number> = {
+  idli: 4, dosa: 3.9, 'masala-dosa': 3.5, 'onion-dosa': 3.6, 'rava-dosa': 3.2, pesarattu: 7.5, appam: 2.5,
+  idiyappam: 2.5, puttu: 3, upma: 3.5, poha: 2.6, pongal: 4, oats: 13, bread: 9, cornflakes: 7, egg: 13,
+  omelette: 11, 'scrambled-egg': 10, milk: 3.2, curd: 3.5, buttermilk: 1.5, paneer: 18, ghee: 0, oil: 0,
+  apple: 0.3, banana: 1.1, orange: 0.9, papaya: 0.5, mango: 0.8, grapes: 0.7, watermelon: 0.6,
+  pomegranate: 1.7, guava: 2.6, chikoo: 0.4, pineapple: 0.5, rice: 2.7, 'curd-rice': 3, 'lemon-rice': 2.8,
+  'tomato-rice': 2.8, 'tamarind-rice': 3, 'coconut-rice': 3, 'veg-biryani': 3.5, 'chicken-biryani': 9,
+  'mutton-biryani': 10, 'egg-biryani': 6, 'fried-rice': 3.5, 'chicken-fried-rice': 7, roti: 10, paratha: 7,
+  'aloo-paratha': 5.5, naan: 9, puri: 6, maggi: 9, noodles: 5, pasta: 5, pizza: 11, burger: 12, fries: 3.4,
+  'potato-chips': 7, sandwich: 9, thali: 4.5, sambar: 3, rasam: 1, dal: 6.5, rajma: 6, chole: 7,
+  'chicken-curry': 14, 'chicken-breast': 31, 'fish-curry': 13, 'fish-fry': 20, 'egg-curry': 9, 'veg-curry': 2.5,
+  'paneer-butter': 9, 'palak-paneer': 9, 'paneer-bhurji': 14, 'soya-curry': 13, sundal: 8.5, sprouts: 4.5,
+  'egg-white': 11, kurma: 3, poriyal: 2.5, salad: 1.5, raita: 3, 'coconut-chutney': 3, 'mint-chutney': 2,
+  'tomato-chutney': 2, pickle: 2, papad: 23, sugar: 0, jaggery: 0.4, biscuit: 7, murukku: 9,
+  'banana-chips': 2.3, samosa: 6, vada: 9, bajji: 6, bonda: 6, laddu: 6, 'mysore-pak': 4, payasam: 4,
+  cake: 5, 'ice-cream': 3.5, chocolate: 7, almonds: 21, peanuts: 26, tea: 1.5, coffee: 1.6,
+  'black-coffee': 0.1, 'green-tea': 0, juice: 0.7, cola: 0, lassi: 3, 'badam-milk': 3.5,
+};
+
 function aliasesFor(name: string, extra: string[]): string[] {
   return [...new Set([name.toLowerCase(), ...extra.map((alias) => alias.toLowerCase())])];
 }
@@ -128,6 +153,7 @@ export const BUILT_IN_FOODS: Food[] = ROWS.map(([id, name, group, kcalPer100g, p
   group,
   aliases: aliasesFor(name, aliases),
   kcalPer100g,
+  proteinPer100g: PROTEIN_PER_100G[id],
   pieceGrams,
   pieceLabel,
   source: 'built-in' as const,

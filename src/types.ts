@@ -6,6 +6,7 @@ export type Food = {
   group: FoodGroup;
   aliases: string[];
   kcalPer100g: number;
+  proteinPer100g?: number;
   pieceGrams: number;
   pieceLabel: string;
   bowlGrams?: number;

@@ -3,7 +3,7 @@ import { buildReports, type RoomReport } from '../lib/budget';
 import { todayISO } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
-import { suggestMeals } from '../lib/suggestions';
+import { KIND_LABEL, proteinEaten, suggestMeals } from '../lib/suggestions';
 import { useHealth } from '../state';
 import type { PeriodKind } from '../types';
 
@@ -50,6 +50,13 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
       light,
     });
   }, [missingCustom, report, health.foods, health.data.logs, today, light]);
+  const protein = useMemo(
+    () => proteinEaten(health.data.logs.filter((log) => log.date === today), health.foods),
+    [health.data.logs, health.foods, today],
+  );
+  const groups = (['protein', 'fit', 'fill', 'usual', 'light'] as const)
+    .map((kind) => ({ kind, items: ideas.filter((idea) => idea.kind === kind) }))
+    .filter((group) => group.items.length > 0);
 
   return (
     <div className="page">
@@ -87,6 +94,7 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
               </p>
             )}
             <p className="note">{explain(report)}</p>
+            {protein != null && <p className="note">About {protein} g protein so far today.</p>}
           </section>
           {ideas.length === 0 ? (
             <p className="empty">
@@ -95,36 +103,42 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
                 : 'Nothing to suggest for this budget right now.'}
             </p>
           ) : (
-            <ul className="idea-list">
-              {ideas.map((idea) => (
-                <li key={idea.query} className="card idea">
-                  <p className="eyebrow">{idea.fromLog ? 'From the log' : light ? 'If you’re still hungry' : 'Fits the budget'}</p>
-                  <h2>{idea.title}</h2>
-                  <p>{idea.detail}</p>
-                  <button
-                    type="button"
-                    className="primary"
-                    onClick={() => {
-                      const parsed = parseFoodList(idea.query, health.foods);
-                      const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
-                      const ids = health.addLogs(
-                        hits.map((hit) => ({
-                          date: today,
-                          title: hit.title,
-                          grams: hit.grams,
-                          kcal: hit.kcal,
-                          outside: false,
-                          foodId: hit.food.id,
-                        })),
-                      );
-                      health.setUndo({ ids, message: `Added ${idea.title} · ${formatKcal(idea.kcal)} kcal` });
-                    }}
-                  >
-                    Add this
-                  </button>
-                </li>
+            <div className="idea-groups">
+              {groups.map((group) => (
+                <section key={group.kind} className="idea-group">
+                  <h2 className="idea-heading">{KIND_LABEL[group.kind]}</h2>
+                  <ul className="idea-list">
+                    {group.items.map((idea) => (
+                      <li key={idea.query} className="card idea">
+                        <h2>{idea.title}</h2>
+                        <p>{idea.detail}</p>
+                        <button
+                          type="button"
+                          className="primary"
+                          onClick={() => {
+                            const parsed = parseFoodList(idea.query, health.foods);
+                            const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
+                            const ids = health.addLogs(
+                              hits.map((hit) => ({
+                                date: today,
+                                title: hit.title,
+                                grams: hit.grams,
+                                kcal: hit.kcal,
+                                outside: false,
+                                foodId: hit.food.id,
+                              })),
+                            );
+                            health.setUndo({ ids, message: `Added ${idea.title} · ${formatKcal(idea.kcal)} kcal` });
+                          }}
+                        >
+                          Add this
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
               ))}
-            </ul>
+            </div>
           )}
           <p className="help">Suggestions are home meals. Calories are estimates from standard portions, and you can correct any food in More.</p>
         </div>

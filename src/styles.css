@@ -324,6 +324,15 @@ input[type='date'] { min-height: 48px; }
 
 .idea-list { display: flex; flex-direction: column; gap: 10px; }
 .idea h2 { font-size: 1.15rem; }
+.idea-groups { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.idea-group { display: flex; flex-direction: column; gap: 10px; }
+.idea-heading { font-size: 0.8rem; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--terra-ink); }
+.suggest-list { display: flex; flex-direction: column; }
+.suggest-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.suggest-row:first-child { border-top: 0; }
+.suggest-row > div { min-width: 0; }
+.suggest-title { font-weight: 600; }
+.suggest-row button { flex: none; min-width: 64px; }
 .food-list { display: flex; flex-direction: column; }
 .food-edit { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
 .steps { padding-left: 1.1rem; display: flex; flex-direction: column; gap: 4px; color: var(--muted); }

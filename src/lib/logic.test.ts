@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { freshData } from './storage';
 import { buildReports, tightestRoom } from './budget';
 import { onTargetStreak, homeStreak } from './streaks';
-import { MEAL_TEMPLATES, suggestMeals } from './suggestions';
+import { MEAL_TEMPLATES, mixedIdeas, suggestMeals } from './suggestions';
 import { BUILT_IN_FOODS } from '../data/foods';
 import { parseFoodList } from './parseFood';
 import { parseISO, weekRange } from './dates';
@@ -98,7 +98,43 @@ describe('suggestions', () => {
       hour: 12,
       light: false,
     });
-    expect(ideas.some((idea) => idea.fromLog)).toBe(false);
+    expect(ideas.some((idea) => idea.kind === 'usual')).toBe(false);
+  });
+
+  it('knows the protein of every built-in food', () => {
+    expect(BUILT_IN_FOODS.filter((food) => food.proteinPer100g == null).map((food) => food.id)).toEqual([]);
+  });
+
+  it('offers protein-rich ideas and plenty of choice', () => {
+    const ideas = suggestMeals({
+      foods: BUILT_IN_FOODS,
+      logs: [],
+      today: '2026-11-04',
+      room: 900,
+      hour: 13,
+      light: false,
+    });
+    const protein = ideas.filter((idea) => idea.kind === 'protein');
+    expect(protein.length).toBeGreaterThanOrEqual(3);
+    expect(protein.every((idea) => (idea.protein ?? 0) >= 12)).toBe(true);
+    expect(ideas.some((idea) => idea.kind === 'fill')).toBe(true);
+    expect(ideas.length).toBeGreaterThanOrEqual(8);
+    expect(new Set(ideas.map((idea) => idea.query)).size).toBe(ideas.length);
+    expect(ideas.every((idea) => idea.kcal <= 900)).toBe(true);
+  });
+
+  it('mixes kinds for the Today card', () => {
+    const ideas = suggestMeals({
+      foods: BUILT_IN_FOODS,
+      logs: [],
+      today: '2026-11-04',
+      room: 900,
+      hour: 13,
+      light: false,
+    });
+    expect(new Set(mixedIdeas(ideas, 3).map((idea) => idea.kind)).size).toBe(3);
+    const evening = suggestMeals({ foods: BUILT_IN_FOODS, logs: [], today: '2026-11-04', room: 1200, hour: 16, light: false });
+    expect(evening.some((idea) => idea.kind === 'fill')).toBe(true);
   });
 
   it('only suggests meals that fit the calories left', () => {

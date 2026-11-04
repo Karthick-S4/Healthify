@@ -8,7 +8,7 @@ import { closeFoods, correctQuery, kcalFor, suggestedGrams } from '../lib/foods'
 import { lookupCalories, type FoodLookup } from '../lib/lookupFood';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
 import { homeStreak, onTargetStreak, type OnTargetStreak } from '../lib/streaks';
-import { suggestMeals } from '../lib/suggestions';
+import { KIND_LABEL, mixedIdeas, suggestMeals } from '../lib/suggestions';
 import { useHealth } from '../state';
 import type { Food, LogEntry } from '../types';
 
@@ -108,8 +108,8 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   }, [amount, draft, health.foods, measure, queue.length]);
 
   const light = tight.over || eaten > target;
-  const idea = useMemo(() => {
-    const ideas = suggestMeals({
+  const ideas = useMemo(() => {
+    const all = suggestMeals({
       foods: health.foods,
       logs: health.data.logs,
       today,
@@ -117,7 +117,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       hour: new Date().getHours(),
       light,
     });
-    return ideas[0] ?? null;
+    return mixedIdeas(all, 3);
   }, [tight, eaten, target, health.foods, health.data.logs, today, light]);
 
   const unknown = queue[0]?.kind === 'unknown' ? queue[0] : null;
@@ -505,27 +505,35 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         </form>
       )}
 
-      {idea && (
+      {ideas.length > 0 && (
         <section className="card suggest">
-          <p className="eyebrow">{idea.fromLog ? 'From the log' : light ? 'If you’re still hungry' : 'Fits what’s left'}</p>
-          <h2>{idea.title}</h2>
-          <p>{idea.detail}</p>
-          <div className="composer-actions">
-            <button
-              type="button"
-              className="primary"
-              onClick={() => {
-                const parsed = parseFoodList(idea.query, health.foods);
-                const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
-                addHits(hits, false);
-              }}
-            >
-              Add this
-            </button>
-            <button type="button" className="ghost" onClick={onOpenIdeas}>
-              More ideas
-            </button>
-          </div>
+          <h2>Ideas for now</h2>
+          <ul className="suggest-list">
+            {ideas.map((idea) => (
+              <li key={idea.query} className="suggest-row">
+                <div>
+                  <p className="eyebrow">{KIND_LABEL[idea.kind]}</p>
+                  <p className="suggest-title">{idea.title}</p>
+                  <p className="note">{idea.detail}</p>
+                </div>
+                <button
+                  type="button"
+                  className="ghost"
+                  aria-label={`Add ${idea.title}`}
+                  onClick={() => {
+                    const parsed = parseFoodList(idea.query, health.foods);
+                    const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
+                    addHits(hits, false);
+                  }}
+                >
+                  Add
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="ghost" onClick={onOpenIdeas}>
+            More ideas
+          </button>
         </section>
       )}
 

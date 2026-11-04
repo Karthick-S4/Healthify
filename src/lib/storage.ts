@@ -10,7 +10,7 @@ export function freshData(): AppData {
   return {
     version: 1,
     pinHash: null,
-    profile: { dailyTarget: 1800, weekBudget: null, monthBudget: null, custom: null },
+    profile: { dailyTarget: 1800, goalSet: false, weekBudget: null, monthBudget: null, custom: null },
     customFoods: [],
     tweaks: {},
     dayTargets: {},
@@ -82,6 +82,7 @@ function asProfile(value: unknown): Profile {
       : null;
   return {
     dailyTarget: clampDaily(typeof profile.dailyTarget === 'number' ? profile.dailyTarget : fallback.dailyTarget),
+    goalSet: profile.goalSet === false ? false : true,
     weekBudget: typeof profile.weekBudget === 'number' ? Math.round(profile.weekBudget) : null,
     monthBudget: typeof profile.monthBudget === 'number' ? Math.round(profile.monthBudget) : null,
     custom: safeCustom,

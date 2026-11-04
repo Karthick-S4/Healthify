@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { IconIdeas, IconMore, IconPeriod, IconToday } from './components/Icons';
 import { HealthProvider, useHealth } from './state';
+import { GoalView } from './views/GoalView';
 import { IdeasView } from './views/IdeasView';
 import { LockView } from './views/LockView';
 import { MoreView } from './views/MoreView';
@@ -13,6 +14,11 @@ function Shell() {
   const health = useHealth();
   const [view, setView] = useState<View>('today');
   const [updateReady, setUpdateReady] = useState(false);
+  const goalSet = health.data.profile.goalSet;
+
+  useEffect(() => {
+    if (goalSet) setView('today');
+  }, [health.profileId, goalSet]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -44,6 +50,7 @@ function Shell() {
   }, []);
 
   if (!health.profileId) return <LockView />;
+  if (!health.data.profile.goalSet) return <GoalView />;
 
   return (
     <div className="shell">

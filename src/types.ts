@@ -33,6 +33,7 @@ export type CustomRange = {
 
 export type Profile = {
   dailyTarget: number;
+  goalSet: boolean;
   weekBudget: number | null;
   monthBudget: number | null;
   custom: CustomRange | null;

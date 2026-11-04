@@ -21,7 +21,7 @@ type HealthApi = {
   profiles: ListedProfile[];
   undo: Undo | null;
   openProfile: (id: string) => void;
-  createProfile: (name: string, dailyTarget: number) => CreateResult;
+  createProfile: (name: string) => CreateResult;
   switchProfile: () => void;
   removeProfile: (id: string) => void;
   dismissHint: () => void;
@@ -173,7 +173,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     const today = todayISO();
     setBook((bookNow) => {
       const profile = bookNow.profiles.find((item) => item.id === activeId);
-      if (!profile || profile.data.dayTargets[today] != null) return bookNow;
+      if (!profile || !profile.data.profile.goalSet || profile.data.dayTargets[today] != null) return bookNow;
       const now = new Date().toISOString();
       return stamp(
         {
@@ -225,12 +225,11 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     rememberProfile(id);
   }, []);
 
-  const createProfile = useCallback((name: string, dailyTarget: number): CreateResult => {
+  const createProfile = useCallback((name: string): CreateResult => {
     const clean = name.trim();
     if (!isProfileName(clean)) return 'invalid';
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    const today = todayISO();
     let result: CreateResult = 'ok';
     setBook((bookNow) => {
       if (bookNow.profiles.some((item) => item.name.toLowerCase() === clean.toLowerCase())) {
@@ -238,8 +237,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         return bookNow;
       }
       const next = freshData();
-      next.profile = { ...next.profile, dailyTarget };
-      next.dayTargets = { [today]: dailyTarget };
+      next.profile = { ...next.profile, goalSet: false };
       return stamp({ ...bookNow, profiles: [...bookNow.profiles, { id, name: clean, updatedAt: now, data: next }] }, now);
     });
     if (result !== 'ok') return result;
@@ -282,7 +280,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     const today = todayISO();
     updateData((current) => ({
       ...current,
-      profile: { ...current.profile, dailyTarget: value },
+      profile: { ...current.profile, dailyTarget: value, goalSet: true },
       dayTargets: { ...current.dayTargets, [today]: value },
     }));
   }, [updateData]);

@@ -26,6 +26,29 @@ export type LogEntry = {
   createdAt: string;
 };
 
+export type WeightEntry = {
+  id: string;
+  date: string;
+  kg: number;
+  createdAt: string;
+};
+
+export type MeasureEntry = {
+  id: string;
+  date: string;
+  part: string;
+  cm: number;
+  createdAt: string;
+};
+
+export type ActivityEntry = {
+  id: string;
+  date: string;
+  name: string;
+  minutes: number;
+  createdAt: string;
+};
+
 export type CustomRange = {
   start: string;
   end: string;
@@ -53,6 +76,9 @@ export type AppData = {
   tweaks: Record<string, FoodTweak>;
   dayTargets: Record<string, number>;
   logs: LogEntry[];
+  weights: WeightEntry[];
+  measures: MeasureEntry[];
+  activities: ActivityEntry[];
   removedLogIds: string[];
   removedFoodIds: string[];
   removedTweakIds: string[];

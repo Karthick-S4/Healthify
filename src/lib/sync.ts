@@ -22,6 +22,13 @@ function mergeData(older: AppData, newer: AppData): AppData {
   for (const food of [...older.customFoods, ...newer.customFoods]) {
     if (!removedFoodIds.includes(food.id)) foods.set(food.id, food);
   }
+  const byId = <T extends { id: string }>(left: T[], right: T[]): T[] => {
+    const map = new Map<string, T>();
+    for (const item of [...left, ...right]) {
+      if (!removedLogIds.includes(item.id)) map.set(item.id, item);
+    }
+    return [...map.values()];
+  };
   const tweaks = { ...older.tweaks, ...newer.tweaks };
   for (const id of removedTweakIds) delete tweaks[id];
   return {
@@ -32,6 +39,9 @@ function mergeData(older: AppData, newer: AppData): AppData {
     tweaks,
     dayTargets: { ...older.dayTargets, ...newer.dayTargets },
     logs: [...logs.values()],
+    weights: byId(older.weights, newer.weights),
+    measures: byId(older.measures, newer.measures),
+    activities: byId(older.activities, newer.activities),
     removedLogIds,
     removedFoodIds,
     removedTweakIds,

@@ -37,6 +37,10 @@ type HealthApi = {
   addLogs: (entries: NewLog[]) => string[];
   updateLog: (id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside'>>) => void;
   removeLogs: (ids: string[]) => void;
+  addWeight: (date: string, kg: number) => void;
+  addMeasure: (date: string, part: string, cm: number) => void;
+  addActivity: (date: string, name: string, minutes: number) => string;
+  removeEntries: (ids: string[]) => void;
   undoLast: () => void;
   setUndo: (undo: Undo | null) => void;
   addCustomFood: (food: Food) => void;
@@ -383,6 +387,49 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateData]);
 
+  const addWeight = useCallback((date: string, kg: number) => {
+    const createdAt = new Date().toISOString();
+    updateData((current) => {
+      const replaced = current.weights.filter((entry) => entry.date === date).map((entry) => entry.id);
+      return {
+        ...current,
+        weights: [...current.weights.filter((entry) => entry.date !== date), { id: crypto.randomUUID(), date, kg, createdAt }],
+        removedLogIds: unique([...current.removedLogIds, ...replaced]),
+      };
+    });
+  }, [updateData]);
+
+  const addMeasure = useCallback((date: string, part: string, cm: number) => {
+    const createdAt = new Date().toISOString();
+    const key = part.trim().toLocaleLowerCase();
+    updateData((current) => {
+      const same = (entry: { date: string; part: string }) => entry.date === date && entry.part.toLocaleLowerCase() === key;
+      const replaced = current.measures.filter(same).map((entry) => entry.id);
+      return {
+        ...current,
+        measures: [...current.measures.filter((entry) => !same(entry)), { id: crypto.randomUUID(), date, part: part.trim(), cm, createdAt }],
+        removedLogIds: unique([...current.removedLogIds, ...replaced]),
+      };
+    });
+  }, [updateData]);
+
+  const addActivity = useCallback((date: string, name: string, minutes: number) => {
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+    updateData((current) => ({ ...current, activities: [...current.activities, { id, date, name: name.trim(), minutes, createdAt }] }));
+    return id;
+  }, [updateData]);
+
+  const removeEntries = useCallback((ids: string[]) => {
+    updateData((current) => ({
+      ...current,
+      weights: current.weights.filter((entry) => !ids.includes(entry.id)),
+      measures: current.measures.filter((entry) => !ids.includes(entry.id)),
+      activities: current.activities.filter((entry) => !ids.includes(entry.id)),
+      removedLogIds: unique([...current.removedLogIds, ...ids]),
+    }));
+  }, [updateData]);
+
   const undoLast = useCallback(() => {
     setUndo((current) => {
       if (current) {
@@ -491,6 +538,10 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       addLogs,
       updateLog,
       removeLogs,
+      addWeight,
+      addMeasure,
+      addActivity,
+      removeEntries,
       undoLast,
       setUndo,
       addCustomFood,
@@ -523,6 +574,10 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       addLogs,
       updateLog,
       removeLogs,
+      addWeight,
+      addMeasure,
+      addActivity,
+      removeEntries,
       undoLast,
       addCustomFood,
       updateCustomFood,

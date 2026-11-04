@@ -1,5 +1,49 @@
-import { addDays } from './dates';
-import type { LogEntry } from '../types';
+import { addDays, eachDate, weekRange } from './dates';
+import type { ActivityEntry, LogEntry } from '../types';
+
+export type WeekMark = 'done' | 'missed' | 'open' | 'skipped' | 'future';
+export type DayResult = 'done' | 'missed' | 'empty';
+
+export function activityStreak(activities: ActivityEntry[], today: string): { days: number; doneToday: boolean } {
+  const active = new Set(activities.map((entry) => entry.date));
+  const doneToday = active.has(today);
+  let count = 0;
+  for (let cursor = doneToday ? today : addDays(today, -1), guard = 0; guard < 800 && active.has(cursor); guard += 1) {
+    count += 1;
+    cursor = addDays(cursor, -1);
+  }
+  return { days: count, doneToday };
+}
+
+export function weekMarks(
+  today: string,
+  result: (iso: string) => DayResult,
+  emptyPast: 'missed' | 'skipped' = 'missed',
+): { iso: string; mark: WeekMark }[] {
+  const { start, end } = weekRange(today);
+  return eachDate(start, end).map((iso) => {
+    if (iso > today) return { iso, mark: 'future' };
+    const day = result(iso);
+    if (day !== 'empty') return { iso, mark: day };
+    return { iso, mark: iso === today ? 'open' : emptyPast };
+  });
+}
+
+export function onTargetDay(logs: LogEntry[], iso: string, target: number): DayResult {
+  const day = logs.filter((log) => log.date === iso);
+  if (day.length === 0) return 'empty';
+  return day.reduce((sum, log) => sum + log.kcal, 0) <= target ? 'done' : 'missed';
+}
+
+export function homeDay(logs: LogEntry[], iso: string): DayResult {
+  const day = logs.filter((log) => log.date === iso);
+  if (day.length === 0) return 'empty';
+  return day.some((log) => log.outside) ? 'missed' : 'done';
+}
+
+export function activityDay(activities: ActivityEntry[], iso: string): DayResult {
+  return activities.some((entry) => entry.date === iso) ? 'done' : 'empty';
+}
 
 export type DayStatus = 'over' | 'under' | 'empty';
 

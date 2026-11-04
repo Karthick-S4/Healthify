@@ -188,7 +188,7 @@ export function MoreView() {
       <section className="card">
         <h2>Foods</h2>
         <p className="help">Portions are estimates. Search to change one, and the next log uses the new number.</p>
-        <input value={query} placeholder="Search idli, apple, dosa" aria-label="Search foods" onChange={(event) => setQuery(event.target.value)} />
+        <input value={query} aria-label="Search foods" onChange={(event) => setQuery(event.target.value)} />
         {visibleFoods.length === 0 ? (
           <p className="empty">{query ? 'No food by that name.' : 'Foods you teach Healthify show up here.'}</p>
         ) : (

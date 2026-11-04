@@ -287,7 +287,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       <div className="today-status">
       <header className="topbar">
         <div>
-          <h1 className="brand-sm">Healthify</h1>
+          <h1 className="brand-sm">Food</h1>
           {health.profileName && <p className="who">{health.profileName}</p>}
           {health.sync === 'failed' && <p className="help">Saved here. GitHub didn’t answer, so your other devices get it on the next try.</p>}
           {health.sync === 'off' && (
@@ -342,7 +342,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         <input
           id="food"
           value={draft}
-          placeholder="rasam, 3 idli, apple"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
@@ -360,7 +359,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
             id="amount"
             inputMode="decimal"
             value={amount}
-            placeholder="200"
             onChange={(event) => {
               setAmount(event.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1'));
               setError(null);

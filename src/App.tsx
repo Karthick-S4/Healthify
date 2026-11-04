@@ -1,24 +1,43 @@
-import { useEffect, useState } from 'react';
-import { IconIdeas, IconMore, IconPeriod, IconToday } from './components/Icons';
+import { useEffect, useState, type ReactNode } from 'react';
+import { IconBack, IconBody, IconFood, IconMore, IconMove, IconSummary } from './components/Icons';
 import { HealthProvider, useHealth } from './state';
+import { ActivityView } from './views/ActivityView';
+import { BodyView } from './views/BodyView';
 import { GoalView } from './views/GoalView';
 import { IdeasView } from './views/IdeasView';
 import { LockView } from './views/LockView';
 import { MoreView } from './views/MoreView';
 import { PeriodView } from './views/PeriodView';
+import { SummaryView } from './views/SummaryView';
 import { TodayView } from './views/TodayView';
 
-type View = 'today' | 'period' | 'ideas' | 'more';
+type Tab = 'summary' | 'food' | 'move' | 'body' | 'more';
+type View = Tab | 'period' | 'ideas';
+
+const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
+  { id: 'summary', label: 'Summary', icon: <IconSummary /> },
+  { id: 'food', label: 'Food', icon: <IconFood /> },
+  { id: 'move', label: 'Move', icon: <IconMove /> },
+  { id: 'body', label: 'Body', icon: <IconBody /> },
+  { id: 'more', label: 'More', icon: <IconMore /> },
+];
+
+const PARENT: Record<'period' | 'ideas', Tab> = { period: 'summary', ideas: 'food' };
 
 function Shell() {
   const health = useHealth();
-  const [view, setView] = useState<View>('today');
+  const [view, setView] = useState<View>('summary');
   const [updateReady, setUpdateReady] = useState(false);
   const goalSet = health.data.profile.goalSet;
+  const tab: Tab = view === 'period' || view === 'ideas' ? PARENT[view] : view;
 
   useEffect(() => {
-    if (goalSet) setView('today');
+    if (goalSet) setView('summary');
   }, [health.profileId, goalSet]);
+
+  useEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0 });
+  }, [view]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -52,6 +71,8 @@ function Shell() {
   if (!health.profileId) return <LockView />;
   if (!health.data.profile.goalSet) return <GoalView />;
 
+  const back = view === 'period' || view === 'ideas' ? PARENT[view] : null;
+
   return (
     <div className="shell">
       {updateReady && (
@@ -63,7 +84,16 @@ function Shell() {
         </div>
       )}
       <main>
-        {view === 'today' && <TodayView onOpenIdeas={() => setView('ideas')} onOpenMore={() => setView('more')} />}
+        {back && (
+          <button type="button" className="back-button" onClick={() => setView(back)}>
+            <IconBack />
+            {back === 'summary' ? 'Summary' : 'Food'}
+          </button>
+        )}
+        {view === 'summary' && <SummaryView onOpen={setView} />}
+        {view === 'food' && <TodayView onOpenIdeas={() => setView('ideas')} onOpenMore={() => setView('more')} />}
+        {view === 'move' && <ActivityView />}
+        {view === 'body' && <BodyView />}
         {view === 'period' && <PeriodView onOpenMore={() => setView('more')} />}
         {view === 'ideas' && <IdeasView onOpenMore={() => setView('more')} />}
         {view === 'more' && <MoreView />}
@@ -78,22 +108,12 @@ function Shell() {
           </div>
         )}
         <nav aria-label="Sections">
-          <button type="button" aria-current={view === 'today' ? 'page' : undefined} onClick={() => setView('today')}>
-            <IconToday />
-            Today
-          </button>
-          <button type="button" aria-current={view === 'period' ? 'page' : undefined} onClick={() => setView('period')}>
-            <IconPeriod />
-            Period
-          </button>
-          <button type="button" aria-current={view === 'ideas' ? 'page' : undefined} onClick={() => setView('ideas')}>
-            <IconIdeas />
-            Ideas
-          </button>
-          <button type="button" aria-current={view === 'more' ? 'page' : undefined} onClick={() => setView('more')}>
-            <IconMore />
-            More
-          </button>
+          {TABS.map((item) => (
+            <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
         </nav>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { AppData, Food, FoodTweak, LogEntry, Profile, ProfileBook, ProfileRecord } from '../types';
+import type { ActivityEntry, AppData, Food, FoodTweak, LogEntry, MeasureEntry, Profile, ProfileBook, ProfileRecord, WeightEntry } from '../types';
 
 export const STORAGE_KEY = 'healthify.v1';
 export const BOOK_KEY = 'healthify.shared.v1';
@@ -15,11 +15,47 @@ export function freshData(): AppData {
     tweaks: {},
     dayTargets: {},
     logs: [],
+    weights: [],
+    measures: [],
+    activities: [],
     removedLogIds: [],
     removedFoodIds: [],
     removedTweakIds: [],
     hintDismissed: false,
   };
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function entryBase(value: unknown): { id: string; date: string; createdAt: string; raw: Record<string, unknown> } | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== 'string' || typeof raw.date !== 'string' || !ISO_DATE.test(raw.date)) return null;
+  return { id: raw.id, date: raw.date, createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString(), raw };
+}
+
+function asWeight(value: unknown): WeightEntry | null {
+  const base = entryBase(value);
+  if (!base || typeof base.raw.kg !== 'number' || !Number.isFinite(base.raw.kg) || base.raw.kg <= 0) return null;
+  return { id: base.id, date: base.date, kg: base.raw.kg, createdAt: base.createdAt };
+}
+
+function asMeasure(value: unknown): MeasureEntry | null {
+  const base = entryBase(value);
+  if (!base || typeof base.raw.part !== 'string' || !base.raw.part.trim()) return null;
+  if (typeof base.raw.cm !== 'number' || !Number.isFinite(base.raw.cm) || base.raw.cm <= 0) return null;
+  return { id: base.id, date: base.date, part: base.raw.part.trim().slice(0, 32), cm: base.raw.cm, createdAt: base.createdAt };
+}
+
+function asActivity(value: unknown): ActivityEntry | null {
+  const base = entryBase(value);
+  if (!base || typeof base.raw.name !== 'string' || !base.raw.name.trim()) return null;
+  if (typeof base.raw.minutes !== 'number' || !Number.isFinite(base.raw.minutes) || base.raw.minutes <= 0) return null;
+  return { id: base.id, date: base.date, name: base.raw.name.trim().slice(0, 40), minutes: Math.round(base.raw.minutes), createdAt: base.createdAt };
+}
+
+function listOf<T>(value: unknown, read: (item: unknown) => T | null): T[] {
+  return Array.isArray(value) ? value.map(read).filter((item): item is T => item !== null) : [];
 }
 
 function clampDaily(value: number): number {
@@ -117,6 +153,9 @@ export function normalizeData(value: unknown): AppData {
     tweaks,
     dayTargets,
     logs: Array.isArray(data.logs) ? data.logs.map(asLog).filter((log): log is LogEntry => log !== null) : [],
+    weights: listOf(data.weights, asWeight),
+    measures: listOf(data.measures, asMeasure),
+    activities: listOf(data.activities, asActivity),
     removedLogIds: asIds(data.removedLogIds),
     removedFoodIds: asIds(data.removedFoodIds),
     removedTweakIds: asIds(data.removedTweakIds),

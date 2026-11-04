@@ -30,7 +30,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
   return (
     <div className="page">
       <header className="topbar">
-        <h1 className="brand-sm">Period</h1>
+        <h1 className="brand-sm">History</h1>
         <p className="dateline">{formatRange(report.start, report.end)}</p>
       </header>
       <div className="seg" role="tablist" aria-label="Time range">

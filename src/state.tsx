@@ -4,7 +4,7 @@ import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
 import { FIRST_DAY, freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
 import { booksEqual, mergeBooks } from './lib/sync';
-import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook } from './types';
+import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook, ProfileRecord } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Targets = { daily: number; week: number | null; month: number | null };
@@ -96,6 +96,25 @@ function rememberProfile(id: string | null) {
   }
 }
 
+const PROFILE_PARAM = 'profile';
+
+function readUrlProfile(): string | null {
+  const name = new URLSearchParams(window.location.search).get(PROFILE_PARAM)?.trim();
+  return name ? name.toLocaleLowerCase() : null;
+}
+
+function writeUrlProfile(name: string | null) {
+  const url = new URL(window.location.href);
+  if (name) url.searchParams.set(PROFILE_PARAM, name);
+  else url.searchParams.delete(PROFILE_PARAM);
+  const next = url.pathname + url.search + url.hash;
+  if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(null, '', next);
+}
+
+function profileNamed(book: ProfileBook, name: string | null): ProfileRecord | undefined {
+  return name ? book.profiles.find((profile) => profile.name.trim().toLocaleLowerCase() === name) : undefined;
+}
+
 function statusOf(result: PullResult): SyncStatus {
   if (result.kind === 'no-key') return 'off';
   return result.kind;
@@ -106,7 +125,14 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     captureLinkKey();
     return loadBook();
   });
-  const [activeId, setActiveId] = useState<string | null>(() => readSelected());
+  const urlProfile = useRef<string | null>(readUrlProfile());
+  const [activeId, setActiveId] = useState<string | null>(() => {
+    const named = profileNamed(book, urlProfile.current);
+    if (!named) return readSelected();
+    urlProfile.current = null;
+    rememberProfile(named.id);
+    return named.id;
+  });
   const [undo, setUndo] = useState<Undo | null>(null);
   const [ready, setReady] = useState(false);
   const [sync, setSync] = useState<SyncStatus>(() => (readSyncKey() ? 'checking' : 'off'));
@@ -186,7 +212,8 @@ export function HealthProvider({ children }: { children: ReactNode }) {
 
   const linkForDevice = useCallback(() => {
     const key = readSyncKey();
-    return key ? deviceLink(key) : null;
+    const name = bookRef.current.profiles.find((profile) => profile.id === activeRef.current)?.name ?? null;
+    return key ? deviceLink(key, name) : null;
   }, []);
 
   const active = book.profiles.find((profile) => profile.id === activeId) ?? null;
@@ -253,6 +280,24 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     setActiveId(sameName?.id ?? null);
     rememberProfile(sameName?.id ?? null);
   }, [activeId, book.profiles, ready]);
+
+  useEffect(() => {
+    if (!urlProfile.current) return;
+    const named = profileNamed(book, urlProfile.current);
+    if (named) {
+      urlProfile.current = null;
+      setActiveId(named.id);
+      rememberProfile(named.id);
+    } else if (ready) {
+      urlProfile.current = null;
+    }
+  }, [book, ready]);
+
+  const activeProfileName = active?.name ?? null;
+  useEffect(() => {
+    if (urlProfile.current) return;
+    writeUrlProfile(activeProfileName);
+  }, [activeProfileName, ready]);
 
   const foods = useMemo(() => allFoods(data), [data]);
 

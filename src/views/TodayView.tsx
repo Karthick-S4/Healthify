@@ -368,6 +368,11 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
           autoCorrect="off"
           spellCheck={false}
           enterKeyHint="next"
+          onFocus={(event) => {
+            const form = event.currentTarget.form;
+            if (window.matchMedia('(min-width: 960px)').matches) return;
+            window.setTimeout(() => form?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 350);
+          }}
           onChange={(event) => {
             setDraft(event.target.value);
             setError(null);
@@ -553,6 +558,27 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         </form>
       )}
 
+      <section className="meals">
+        <h2>Today</h2>
+        {todayLogs.length === 0 ? (
+          <p className="empty">Nothing logged yet. Type the food, then the grams or ml beside it.</p>
+        ) : (
+          <ul className="meal-list">
+            {todayLogs.map((log) => (
+              <li key={log.id}>
+                <button type="button" className="meal" onClick={() => setEditing(log)}>
+                  <span>
+                    <strong>{log.title}</strong>
+                    {log.outside && <em className="tag">Outside</em>}
+                  </span>
+                  <b>{formatKcal(log.kcal)}</b>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {ideas.length > 0 && (
         <section className="card suggest">
           <h2>Ideas for now</h2>
@@ -584,27 +610,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
           </button>
         </section>
       )}
-
-      <section className="meals">
-        <h2>Today</h2>
-        {todayLogs.length === 0 ? (
-          <p className="empty">Nothing logged yet. Type the food, then the grams or ml beside it.</p>
-        ) : (
-          <ul className="meal-list">
-            {todayLogs.map((log) => (
-              <li key={log.id}>
-                <button type="button" className="meal" onClick={() => setEditing(log)}>
-                  <span>
-                    <strong>{log.title}</strong>
-                    {log.outside && <em className="tag">Outside</em>}
-                  </span>
-                  <b>{formatKcal(log.kcal)}</b>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
 
       </div>
 

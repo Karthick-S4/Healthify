@@ -2,7 +2,6 @@
   "name": "Healthify",
   "short_name": "Healthify",
   "description": "A personal calorie log that stays on this phone.",
-  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "background_color": "#fdf2f4",

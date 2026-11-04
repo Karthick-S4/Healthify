@@ -37,10 +37,10 @@ export function captureLinkKey() {
   window.history.replaceState(null, '', window.location.pathname + window.location.search);
 }
 
-export function deviceLink(key: string): string {
-  return `${window.location.origin}${window.location.pathname}#${LINK_PARAM}=${encodeURIComponent(key)}`;
+export function deviceLink(key: string, profile: string | null = null): string {
+  const search = profile ? `?profile=${encodeURIComponent(profile)}` : '';
+  return `${window.location.origin}${window.location.pathname}${search}#${LINK_PARAM}=${encodeURIComponent(key)}`;
 }
-
 async function send(url: string, key: string, init: RequestInit = {}): Promise<Response | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

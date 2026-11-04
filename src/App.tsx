@@ -28,6 +28,7 @@ function Shell() {
   const health = useHealth();
   const [view, setView] = useState<View>('summary');
   const [updateReady, setUpdateReady] = useState(false);
+  const [typing, setTyping] = useState(false);
   const goalSet = health.data.profile.goalSet;
   const tab: Tab = view === 'period' || view === 'ideas' ? PARENT[view] : view;
 
@@ -68,13 +69,27 @@ function Shell() {
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const isField = (element: Element | null) =>
+      element instanceof HTMLTextAreaElement ||
+      (element instanceof HTMLInputElement && !['button', 'checkbox', 'radio', 'range', 'submit'].includes(element.type));
+    const update = () => setTyping(isField(document.activeElement));
+    const onFocusOut = () => window.setTimeout(update, 120);
+    document.addEventListener('focusin', update);
+    document.addEventListener('focusout', onFocusOut);
+    return () => {
+      document.removeEventListener('focusin', update);
+      document.removeEventListener('focusout', onFocusOut);
+    };
+  }, []);
+
   if (!health.profileId) return <LockView />;
   if (!health.data.profile.goalSet) return <GoalView />;
 
   const back = view === 'period' || view === 'ideas' ? PARENT[view] : null;
 
   return (
-    <div className="shell">
+    <div className={typing ? 'shell typing' : 'shell'}>
       {updateReady && (
         <div className="update">
           <p>A new version is ready.</p>

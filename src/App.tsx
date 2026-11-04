@@ -15,6 +15,24 @@ function Shell() {
   const [updateReady, setUpdateReady] = useState(false);
 
   useEffect(() => {
+    const root = document.documentElement;
+    const apply = () => {
+      const viewport = window.visualViewport;
+      const height = viewport ? viewport.height : window.innerHeight;
+      root.style.setProperty('--vv-height', `${Math.round(height)}px`);
+    };
+    apply();
+    window.visualViewport?.addEventListener('resize', apply);
+    window.visualViewport?.addEventListener('scroll', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      window.visualViewport?.removeEventListener('resize', apply);
+      window.visualViewport?.removeEventListener('scroll', apply);
+      window.removeEventListener('resize', apply);
+    };
+  }, []);
+
+  useEffect(() => {
     const url = new URL('version.json', document.baseURI);
     url.searchParams.set('ts', String(Date.now()));
     fetch(url, { cache: 'no-store' })

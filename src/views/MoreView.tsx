@@ -134,7 +134,7 @@ export function MoreView() {
   }
 
   return (
-    <div className="page">
+    <div className="page board">
       <header className="topbar">
         <h1 className="brand-sm">More</h1>
       </header>
@@ -274,7 +274,7 @@ export function MoreView() {
 
       <section className="card">
         <h2>Backup</h2>
-        <p className="help">The file holds this phone’s diary. Keep it private. The PIN in the file is stored as a hash.</p>
+        <p className="help">The file holds this device’s diary. Keep it private. The PIN in the file is stored as a hash.</p>
         <div className="composer-actions">
           <button
             type="button"
@@ -321,13 +321,13 @@ export function MoreView() {
       </section>
 
       <section className="card">
-        <h2>On an iPhone</h2>
+        <h2>Add it to a home screen</h2>
         <ol className="steps">
-          <li>Open this page in Safari.</li>
+          <li>On iPhone or iPad, open this page in Safari.</li>
           <li>Tap Share, then Add to Home Screen.</li>
-          <li>Open Healthify from the icon.</li>
+          <li>On a Windows or Mac laptop, use Chrome or Edge and install it from the address-bar icon.</li>
         </ol>
-        <p className="help">After a new version is published, swipe the icon away and open it again. Meals stay on this phone. The website code is public; the diary is not.</p>
+        <p className="help">After a new version is published, close Healthify and open it again. Meals stay on this device. The website code is public; the diary is not.</p>
       </section>
 
       <form className="card" onSubmit={(event) => void onPin(event)}>
@@ -346,11 +346,11 @@ export function MoreView() {
       </form>
 
       <section className="card">
-        <h2>This phone</h2>
+        <h2>This device</h2>
         <button type="button" className="ghost" onClick={health.lock}>
           Lock now
         </button>
-        <p className="help">Type ERASE to delete the diary, PIN, and targets on this phone.</p>
+        <p className="help">Type ERASE to delete the diary, PIN, and targets on this device.</p>
         <input value={eraseText} aria-label="Type ERASE to confirm" onChange={(event) => setEraseText(event.target.value)} />
         <button type="button" className="danger" disabled={eraseText !== 'ERASE'} onClick={() => health.erase()}>
           Erase diary

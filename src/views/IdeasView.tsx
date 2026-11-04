@@ -72,7 +72,7 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
           </button>
         </section>
       ) : (
-        <>
+        <div className="split">
           <section className="summary">
             <p className="eyebrow">{report.label}</p>
             {report.over ? (
@@ -127,7 +127,7 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
             </ul>
           )}
           <p className="help">Suggestions are home meals. Calories are estimates from standard portions, and you can correct any food in More.</p>
-        </>
+        </div>
       )}
     </div>
   );

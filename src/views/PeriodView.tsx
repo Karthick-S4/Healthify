@@ -50,7 +50,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
           </button>
         </section>
       ) : (
-        <>
+        <div className="split">
           <section className="summary">
             <p className="eyebrow">{report.over ? 'Over budget' : 'Within budget'}</p>
             <p className="summary-num">
@@ -124,7 +124,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
             })}
           </ul>
           <p className="help">Green stays at or under that day’s target. Terracotta is over. A past day with no log ends the on-target streak.</p>
-        </>
+        </div>
       )}
       {editing && (
         <MealEditor

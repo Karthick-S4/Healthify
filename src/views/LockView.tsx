@@ -63,12 +63,12 @@ export function LockView({ mode }: LockViewProps) {
 
   return (
     <main className="lock">
-      <p className="eyebrow">On this iPhone</p>
+      <p className="eyebrow">On this device</p>
       <h1>Healthify</h1>
       <p className="lede">
         {mode === 'setup'
-          ? 'A calorie log that stays on this phone. Set a PIN, then a daily target.'
-          : 'Enter the PIN to open the diary stored on this phone.'}
+          ? 'A calorie log that stays on this device. Set a PIN, then a daily target.'
+          : 'Enter the PIN to open the diary stored on this device.'}
       </p>
       <label className="field-label" htmlFor="pin">
         PIN
@@ -140,7 +140,7 @@ export function LockView({ mode }: LockViewProps) {
           </button>
           {eraseOpen && (
             <>
-              <p className="help">This erases the diary on this phone. Type ERASE to confirm.</p>
+              <p className="help">This erases the diary on this device. Type ERASE to confirm.</p>
               <input value={eraseText} onChange={(event) => setEraseText(event.target.value)} aria-label="Type ERASE to confirm" />
               <button type="button" className="danger" disabled={eraseText !== 'ERASE'} onClick={() => health.erase()}>
                 Erase diary

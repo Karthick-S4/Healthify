@@ -183,7 +183,8 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   const homeToday = todayLogs.some((log) => !log.outside);
 
   return (
-    <div className="page">
+    <div className="page today-page">
+      <div className="today-status">
       <header className="topbar">
         <h1 className="brand-sm">Healthify</h1>
         <p className="dateline">{formatLong(today)}</p>
@@ -213,7 +214,9 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         </div>
       </div>
       <p className={eaten > target || tight.over ? 'left over' : 'left'}>{roomSentence(tight)}</p>
+      </div>
 
+      <div className="today-log">
       <form className="composer" onSubmit={onSubmit}>
         <label className="field-label" htmlFor="food">
           Add food
@@ -243,6 +246,40 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         {ateOut && <p className="help">Everything in this box counts as outside food and resets the home-meal streak.</p>}
       </form>
       {error && <p className="error">{error}</p>}
+
+      <div className="strip" aria-label="This week, calories eaten">
+        {weekDays.map((iso) => {
+          const dayTarget = targetForDay(health.data, iso);
+          const dayEaten = health.data.logs.filter((log) => log.date === iso).reduce((sum, log) => sum + log.kcal, 0);
+          const hasLogs = health.data.logs.some((log) => log.date === iso);
+          const over = hasLogs && dayEaten > dayTarget;
+          const pct = dayTarget <= 0 ? 0 : Math.min(100, (dayEaten / dayTarget) * 100);
+          return (
+            <button
+              key={iso}
+              type="button"
+              className={picked === iso ? 'strip-col on' : 'strip-col'}
+              onClick={() => setPicked(iso)}
+              aria-pressed={picked === iso}
+              aria-label={`${formatWeekday(iso)} ${formatShort(iso)}, ${hasLogs ? `${Math.round(dayEaten)} of ${Math.round(dayTarget)} calories` : 'no log'}`}
+            >
+              <span className="strip-track">
+                <span
+                  className={over ? 'strip-fill over' : hasLogs ? 'strip-fill' : 'strip-fill empty'}
+                  style={{ height: hasLogs ? `${Math.max(pct, 8)}%` : undefined }}
+                />
+              </span>
+              <span className="strip-letter">{formatWeekday(iso).slice(0, 1)}</span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="strip-caption">
+        {formatWeekday(picked)} {formatShort(picked)} ·{' '}
+        {health.data.logs.some((log) => log.date === picked)
+          ? `${formatKcal(health.data.logs.filter((log) => log.date === picked).reduce((sum, log) => sum + log.kcal, 0))} of ${formatKcal(targetForDay(health.data, picked))}`
+          : 'No log'}
+      </p>
 
       {pending && (
         <form className="card pending" onSubmit={resolvePending}>
@@ -284,40 +321,6 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
           </div>
         </form>
       )}
-
-      <div className="strip" aria-label="This week, calories eaten">
-        {weekDays.map((iso) => {
-          const dayTarget = targetForDay(health.data, iso);
-          const dayEaten = health.data.logs.filter((log) => log.date === iso).reduce((sum, log) => sum + log.kcal, 0);
-          const hasLogs = health.data.logs.some((log) => log.date === iso);
-          const over = hasLogs && dayEaten > dayTarget;
-          const pct = dayTarget <= 0 ? 0 : Math.min(100, (dayEaten / dayTarget) * 100);
-          return (
-            <button
-              key={iso}
-              type="button"
-              className={picked === iso ? 'strip-col on' : 'strip-col'}
-              onClick={() => setPicked(iso)}
-              aria-pressed={picked === iso}
-              aria-label={`${formatWeekday(iso)} ${formatShort(iso)}, ${hasLogs ? `${Math.round(dayEaten)} of ${Math.round(dayTarget)} calories` : 'no log'}`}
-            >
-              <span className="strip-track">
-                <span
-                  className={over ? 'strip-fill over' : hasLogs ? 'strip-fill' : 'strip-fill empty'}
-                  style={{ height: hasLogs ? `${Math.max(pct, 8)}%` : undefined }}
-                />
-              </span>
-              <span className="strip-letter">{formatWeekday(iso).slice(0, 1)}</span>
-            </button>
-          );
-        })}
-      </div>
-      <p className="strip-caption">
-        {formatWeekday(picked)} {formatShort(picked)} ·{' '}
-        {health.data.logs.some((log) => log.date === picked)
-          ? `${formatKcal(health.data.logs.filter((log) => log.date === picked).reduce((sum, log) => sum + log.kcal, 0))} of ${formatKcal(targetForDay(health.data, picked))}`
-          : 'No log'}
-      </p>
 
       {idea && (
         <section className="card suggest">
@@ -366,13 +369,16 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
 
       {!health.data.hintDismissed && (
         <section className="card hint">
-          <h2>Put this on the iPhone</h2>
-          <p>In Safari, tap Share, then Add to Home Screen. The icon opens Healthify on its own. After an update, swipe the icon away and open it again.</p>
+          <h2>Keep Healthify one tap away</h2>
+          <p>
+            On iPhone or iPad, open this in Safari, tap Share, then Add to Home Screen. On a Windows or Mac laptop, Chrome or Edge can install it from the address-bar icon. After an update, close it and open it again.
+          </p>
           <button type="button" className="ghost" onClick={health.dismissHint}>
             Got it
           </button>
         </section>
       )}
+      </div>
 
       {editing && (
         <MealEditor

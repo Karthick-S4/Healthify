@@ -32,6 +32,28 @@ describe('parseFoodList', () => {
     expect(parseFoodList('apple 150', foods).items[0]).toMatchObject({ kcal: 78 });
   });
 
+  it('scales every dish by gm or ml', () => {
+    expect(parseFoodList('rasam 200 gm', foods).items[0]).toMatchObject({
+      kind: 'food',
+      food: { id: 'rasam' },
+      grams: 200,
+      kcal: 60,
+      title: 'Rasam, 200 g',
+    });
+    expect(parseFoodList('rasam 200ml', foods).items[0]).toMatchObject({ grams: 200, kcal: 60, title: 'Rasam, 200 ml' });
+    expect(parseFoodList('250 ml sambar', foods).items[0]).toMatchObject({
+      food: { id: 'sambar' },
+      grams: 250,
+      kcal: 138,
+      title: 'Sambar, 250 ml',
+    });
+    expect(parseFoodList('dosa 80 gm', foods).items[0]).toMatchObject({ food: { id: 'dosa' }, grams: 80, kcal: 134 });
+    expect(parseFoodList('milk 250 ml', foods).items[0]).toMatchObject({ food: { id: 'milk' }, grams: 250, kcal: 150, title: 'Milk, 250 ml' });
+    expect(parseFoodList('3 idli 40 gm', foods).items[0]).toMatchObject({ grams: 120, kcal: 175, title: '3 Idli, 120 g' });
+    expect(parseFoodList('1 rasam', foods).items[0]).toMatchObject({ grams: 150, kcal: 45, title: '1 Rasam' });
+    expect(parseFoodList('rasam ml', foods).items[0]).toMatchObject({ kind: 'need-grams', food: { id: 'rasam' }, unit: 'ml' });
+  });
+
   it('asks for grams when the weight was left out', () => {
     const parsed = parseFoodList('apple g', foods);
     expect(parsed.items[0]).toMatchObject({ kind: 'need-grams', food: { id: 'apple' } });

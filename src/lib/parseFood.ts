@@ -7,12 +7,14 @@ const OUTSIDE_PATTERN =
 
 type Household = 'bowl' | 'cup' | 'glass' | 'plate' | 'tbsp' | 'tsp';
 
+export type Measure = 'g' | 'ml';
+
 type Quantity =
   | { mode: 'piece'; name: string; count: number }
-  | { mode: 'grams'; name: string; grams: number }
-  | { mode: 'each-grams'; name: string; count: number; gramsEach: number }
+  | { mode: 'grams'; name: string; grams: number; unit: Measure }
+  | { mode: 'each-grams'; name: string; count: number; gramsEach: number; unit: Measure }
   | { mode: 'household'; name: string; unit: Household; count: number }
-  | { mode: 'grams-missing'; name: string };
+  | { mode: 'grams-missing'; name: string; unit: Measure };
 
 export type FoodHit = {
   kind: 'food';
@@ -24,12 +26,12 @@ export type FoodHit = {
 
 export type ParsedItem =
   | FoodHit
-  | { kind: 'unknown'; name: string; count: number; grams: number | null }
-  | { kind: 'need-grams'; food: Food }
+  | { kind: 'unknown'; name: string; count: number; grams: number | null; unit: Measure | null }
+  | { kind: 'need-grams'; food: Food; unit: Measure }
   | { kind: 'invalid'; message: string };
 
 const HOUSEHOLD = String.raw`tablespoons?|teaspoons?|cups?|bowls?|katoris?|glasses|glass|plates?|tbsp|tsp`;
-const WEIGHT = String.raw`kg|grams?|g|ml`;
+const WEIGHT = String.raw`kilograms?|kgs?|kg|grams?|gms?|millilitres?|milliliters?|mls?|ml|g`;
 
 function cleanup(raw: string): string {
   return raw
@@ -50,31 +52,41 @@ function canonUnit(unit: string): Household {
   return 'tsp';
 }
 
+function measureOf(unit: string): Measure {
+  const value = unit.toLowerCase();
+  return value === 'ml' || value === 'mls' || value.startsWith('milli') ? 'ml' : 'g';
+}
+
 function weightGrams(amount: number, unit: string): number {
-  return unit.toLowerCase() === 'kg' ? amount * 1000 : amount;
+  const value = unit.toLowerCase();
+  return value === 'kg' || value === 'kgs' || value.startsWith('kilogram') ? amount * 1000 : amount;
+}
+
+function amountLabel(grams: number, unit: Measure): string {
+  return `${Math.round(grams)} ${unit}`;
 }
 
 function extractQuantity(text: string): Quantity | null {
   const source = cleanup(text);
   if (!source) return null;
 
-  let match = source.match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s+(.+?)\\s+(\\d+(?:\\.\\d+)?)\\s*(g|grams?)$`, 'i'));
+  let match = source.match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s+(.+?)\\s+(\\d+(?:\\.\\d+)?)\\s*(${WEIGHT})$`, 'i'));
   if (match) {
-    return { mode: 'each-grams', count: Number(match[1]), name: match[2], gramsEach: Number(match[3]) };
+    return { mode: 'each-grams', count: Number(match[1]), name: match[2], gramsEach: Number(match[3]), unit: measureOf(match[4]) };
   }
 
   match = source.match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*(${WEIGHT})\\s+(.+)$`, 'i'));
   if (match) {
-    return { mode: 'grams', grams: weightGrams(Number(match[1]), match[2]), name: match[3] };
+    return { mode: 'grams', grams: weightGrams(Number(match[1]), match[2]), unit: measureOf(match[2]), name: match[3] };
   }
 
   match = source.match(new RegExp(`^(.+?)\\s+(\\d+(?:\\.\\d+)?)\\s*(${WEIGHT})$`, 'i'));
   if (match) {
-    return { mode: 'grams', name: match[1], grams: weightGrams(Number(match[2]), match[3]) };
+    return { mode: 'grams', name: match[1], grams: weightGrams(Number(match[2]), match[3]), unit: measureOf(match[3]) };
   }
 
-  match = source.match(/^(.+?)\s+(g|grams?)$/i);
-  if (match) return { mode: 'grams-missing', name: match[1] };
+  match = source.match(new RegExp(`^(.+?)\\s+(${WEIGHT})$`, 'i'));
+  if (match) return { mode: 'grams-missing', name: match[1], unit: measureOf(match[2]) };
 
   match = source.match(new RegExp(`^(\\d+(?:\\.\\d+)?)\\s*(${HOUSEHOLD})\\s+(?:of\\s+)?(.+)$`, 'i'));
   if (match) {
@@ -102,7 +114,7 @@ function extractQuantity(text: string): Quantity | null {
   match = source.match(/^(.+?)\s+(\d+(?:\.\d+)?)$/i);
   if (match) {
     const amount = Number(match[2]);
-    if (amount >= 20) return { mode: 'grams', name: match[1], grams: amount };
+    if (amount >= 20) return { mode: 'grams', name: match[1], grams: amount, unit: 'g' };
     return { mode: 'piece', count: amount, name: match[1] };
   }
 
@@ -123,10 +135,9 @@ function unitWord(unit: Household, count: number): string {
 }
 
 function titleFor(food: Food, quantity: Exclude<Quantity, { mode: 'grams-missing' }>, grams: number): string {
-  if (quantity.mode === 'piece' || quantity.mode === 'each-grams') {
-    return `${formatCount(quantity.count)} ${food.name}`;
-  }
-  if (quantity.mode === 'grams') return `${food.name}, ${Math.round(grams)} g`;
+  if (quantity.mode === 'piece') return `${formatCount(quantity.count)} ${food.name}`;
+  if (quantity.mode === 'each-grams') return `${formatCount(quantity.count)} ${food.name}, ${amountLabel(grams, quantity.unit)}`;
+  if (quantity.mode === 'grams') return `${food.name}, ${amountLabel(grams, quantity.unit)}`;
   return `${food.name}, ${formatCount(quantity.count)} ${unitWord(quantity.unit, quantity.count)}`;
 }
 
@@ -162,10 +173,11 @@ export function parseOne(raw: string, foods: Food[]): ParsedItem | null {
       name: quantity.name,
       count,
       grams: assumedGrams(quantity),
+      unit: quantity.mode === 'grams' || quantity.mode === 'each-grams' ? quantity.unit : null,
     };
   }
 
-  if (quantity.mode === 'grams-missing') return { kind: 'need-grams', food };
+  if (quantity.mode === 'grams-missing') return { kind: 'need-grams', food, unit: quantity.unit };
 
   const grams =
     quantity.mode === 'piece'

@@ -13,8 +13,8 @@ import { useHealth } from '../state';
 import type { Food, LogEntry } from '../types';
 
 type Pending =
-  | { kind: 'unknown'; name: string; count: number; grams: number | null; outside: boolean }
-  | { kind: 'need-grams'; food: Food; outside: boolean };
+  | { kind: 'unknown'; name: string; count: number; grams: number | null; unit: 'g' | 'ml' | null; outside: boolean }
+  | { kind: 'need-grams'; food: Food; unit: 'g' | 'ml'; outside: boolean };
 
 type TodayViewProps = {
   onOpenIdeas: () => void;
@@ -147,7 +147,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     event.preventDefault();
     const parsed = parseFoodList(draft, health.foods);
     if (parsed.items.length === 0) {
-      setError(parsed.outside ? 'Add the food as well.' : 'Type a food, such as 3 idli or apple 150g.');
+      setError(parsed.outside ? 'Add the food as well.' : 'Type a food, such as 3 idli, rasam 200 ml, or apple 150 gm.');
       return;
     }
     const outside = parsed.outside || ateOut;
@@ -174,13 +174,14 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     const current = queue[0];
     if (!current) return;
     const grams = Number(gramsDraft);
+    const unit = current.unit === 'ml' ? 'ml' : 'g';
     if (!Number.isFinite(grams) || grams <= 0 || grams > 3000) {
-      setError('Enter a weight between 1 and 3,000 grams.');
+      setError(unit === 'ml' ? 'Enter millilitres between 1 and 3,000.' : 'Enter a weight between 1 and 3,000 grams.');
       return;
     }
     if (current.kind === 'need-grams') {
       const kcal = kcalFor(current.food, grams);
-      addHits([{ kind: 'food', food: current.food, grams, kcal, title: `${current.food.name}, ${Math.round(grams)} g` }], current.outside);
+      addHits([{ kind: 'food', food: current.food, grams, kcal, title: `${current.food.name}, ${Math.round(grams)} ${unit}` }], current.outside);
     } else {
       const kcal = Number(kcalDraft);
       if (!Number.isFinite(kcal) || kcal < 0 || kcal > 4000) {
@@ -201,7 +202,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         source: 'custom',
       };
       health.addCustomFood(food);
-      const title = `${name}, ${Math.round(grams)} g`;
+      const title = `${name}, ${Math.round(grams)} ${unit}`;
       const ids = health.addLogs([{ date: today, title, grams, kcal, outside: current.outside, foodId: food.id }]);
       health.setUndo({ ids, message: `Added ${title} · ${formatKcal(kcal)} kcal` });
     }
@@ -221,7 +222,8 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     if (!current || current.kind !== 'unknown') return;
     const count = current.count > 0 ? current.count : 1;
     const grams = current.grams ?? food.pieceGrams * count;
-    const title = current.grams != null ? `${food.name}, ${Math.round(grams)} g` : `${formatCount(count)} ${food.name}`;
+    const unit = current.unit === 'ml' ? 'ml' : 'g';
+    const title = current.grams != null ? `${food.name}, ${Math.round(grams)} ${unit}` : `${formatCount(count)} ${food.name}`;
     addHits([{ kind: 'food', food, grams, kcal: kcalFor(food, grams), title }], current.outside);
     const rest = queue.slice(1);
     setQueue(rest);
@@ -285,7 +287,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         <input
           id="food"
           value={draft}
-          placeholder="3 idli, biryani, apple 150g"
+          placeholder="3 idli, rasam 200 ml, apple 150 gm"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
@@ -346,8 +348,13 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         <form className="card pending" onSubmit={resolvePending}>
           {pending.kind === 'need-grams' ? (
             <>
-              <h2>How many grams of {pending.food.name}?</h2>
-              <input inputMode="numeric" value={gramsDraft} aria-label="Grams" onChange={(event) => setGramsDraft(event.target.value.replace(/[^\d.]/g, ''))} />
+              <h2>How many {pending.unit === 'ml' ? 'ml' : 'grams'} of {pending.food.name}?</h2>
+              <input
+                inputMode="numeric"
+                value={gramsDraft}
+                aria-label={pending.unit === 'ml' ? 'Millilitres' : 'Grams'}
+                onChange={(event) => setGramsDraft(event.target.value.replace(/[^\d.]/g, ''))}
+              />
               {pendingKcal != null && <p className="preview">{formatKcal(pendingKcal)} kcal</p>}
             </>
           ) : (
@@ -357,11 +364,11 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
               {looking && <p className="help">Checking a food database for the calories.</p>}
               {!looking && lookup && (
                 <p className="help">
-                  About {formatKcal(lookup.kcalPer100g)} kcal per 100 g, from {lookup.detail}. Change the grams or calories if this portion is different.
+                  About {formatKcal(lookup.kcalPer100g)} kcal per 100 {pending.unit === 'ml' ? 'ml' : 'g'}, from {lookup.detail}. Change the amount or calories if this portion is different.
                 </p>
               )}
               {!looking && !lookup && (
-                <p className="help">No listing turned up. Type the calories and grams. Healthify remembers them, and you can change the meal later.</p>
+                <p className="help">No listing turned up. Type the calories and the grams or ml. Healthify remembers them, and you can change the meal later.</p>
               )}
               {!looking && (
                 <>
@@ -370,7 +377,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
                   </label>
                   <input id="new-name" value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} />
                   <label className="field-label" htmlFor="new-grams">
-                    Grams
+                    {pending.unit === 'ml' ? 'Millilitres' : 'Grams'}
                   </label>
                   <input
                     id="new-grams"
@@ -464,7 +471,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       <section className="meals">
         <h2>Today</h2>
         {todayLogs.length === 0 ? (
-          <p className="empty">Nothing logged yet. Try 3 idli or apple 150g.</p>
+          <p className="empty">Nothing logged yet. Try 3 idli, rasam 200 ml, or apple 150 gm.</p>
         ) : (
           <ul className="meal-list">
             {todayLogs.map((log) => (

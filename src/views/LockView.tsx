@@ -7,8 +7,8 @@ export function LockView() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
-
-  const showCreate = creating || (!health.loading && health.profiles.length === 0);
+  const hasProfiles = health.profiles.length > 0;
+  const showCreate = creating || name.trim().length > 0 || !hasProfiles;
 
   function onCreate(event: FormEvent) {
     event.preventDefault();
@@ -31,11 +31,13 @@ export function LockView() {
   return (
     <div className="lock">
       <h1>Healthify</h1>
-      {health.loading && health.profiles.length === 0 ? (
-        <p className="lede">Opening profiles…</p>
-      ) : showCreate ? (
+      {showCreate ? (
         <form onSubmit={onCreate}>
-          <p className="lede">Create a profile with a name. Open that same name on the iPhone, iPad, or laptop and the meals are already there.</p>
+          <p className="lede">
+            {hasProfiles
+              ? 'Add another profile. The names already here stay in the list.'
+              : 'Create a profile with a name. Next time, choose that name and continue.'}
+          </p>
           <label className="field-label" htmlFor="profile-name">
             Name
           </label>
@@ -44,13 +46,24 @@ export function LockView() {
           <button className="primary" type="submit">
             Create profile
           </button>
-          {health.profiles.length > 0 && (
-            <button type="button" className="ghost" onClick={() => setCreating(false)}>
+          {hasProfiles && (
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => {
+                setCreating(false);
+                setName('');
+                setError(null);
+              }}
+            >
               Back to profiles
             </button>
           )}
           <p className="help">There is no password. Anyone who opens this page can choose a profile.</p>
-          {health.syncError && <p className="help">The shared diary didn’t answer. A profile created here will show on the other devices when the connection is back.</p>}
+          {health.loading && <p className="help">Checking your other devices…</p>}
+          {!health.loading && health.syncError && (
+            <p className="help">The shared diary didn’t answer. A profile saved here stays on this device and shows on the others when the connection is back.</p>
+          )}
         </form>
       ) : (
         <form
@@ -58,7 +71,7 @@ export function LockView() {
             event.preventDefault();
           }}
         >
-          <p className="lede">Choose a profile. Its meals are the same on every device.</p>
+          <p className="lede">Choose a profile to continue. Its meals are the same on every device.</p>
           <div className="profile-list" role="group" aria-label="Profiles">
             {health.profiles.map((profile) => (
               <button key={profile.id} type="button" className="choice" onClick={() => health.openProfile(profile.id)}>
@@ -77,7 +90,10 @@ export function LockView() {
             Create a profile
           </button>
           <p className="help">There is no password. Anyone who opens this page can choose a profile.</p>
-          {health.syncError && <p className="help">Showing profiles saved on this device. The shared diary didn’t answer just now.</p>}
+          {health.loading && <p className="help">Checking your other devices…</p>}
+          {!health.loading && health.syncError && (
+            <p className="help">Showing profiles saved on this device. The shared diary didn’t answer just now.</p>
+          )}
         </form>
       )}
     </div>

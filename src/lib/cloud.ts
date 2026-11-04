@@ -1,23 +1,31 @@
-import { emptyBook, normalizeBook } from './storage';
+import { normalizeBook } from './storage';
 import { mergeBooks } from './sync';
 import type { ProfileBook } from '../types';
 
-const DIARY_URL = 'https://crudcrud.com/api/fda0d8957ad745f29c558c6897b3588f/diary';
+const ITEM_URL = 'https://crudcrud.com/api/507f3b82f30f4b01a6c6d258e4146607/diary/6aeaf809062f2b03e883fa27';
+const TIMEOUT_MS = 8000;
 
-type CloudRow = { _id?: string };
+async function send(url: string, init: RequestInit = {}): Promise<Response | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, cache: 'no-store', signal: controller.signal });
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
-async function readRows(): Promise<CloudRow[] | null> {
-  const response = await fetch(`${DIARY_URL}?ts=${Date.now()}`, { cache: 'no-store' });
-  if (!response.ok) return null;
-  const rows = (await response.json()) as unknown;
-  return Array.isArray(rows) ? (rows as CloudRow[]) : null;
+async function readDiary(): Promise<ProfileBook | null> {
+  const response = await send(ITEM_URL, { headers: { Accept: 'application/json' } });
+  if (!response?.ok) return null;
+  return normalizeBook(await response.json());
 }
 
 export async function pullDiary(): Promise<ProfileBook | null> {
   try {
-    const rows = await readRows();
-    if (!rows) return null;
-    return rows.map((row) => normalizeBook(row)).reduce(mergeBooks, emptyBook());
+    return await readDiary();
   } catch {
     return null;
   }
@@ -25,18 +33,15 @@ export async function pullDiary(): Promise<ProfileBook | null> {
 
 export async function pushDiary(local: ProfileBook): Promise<ProfileBook | null> {
   try {
-    const rows = await readRows();
-    if (!rows) return null;
-    const remote = rows.map((row) => normalizeBook(row)).reduce(mergeBooks, emptyBook());
+    const remote = await readDiary();
+    if (!remote) return null;
     const merged = mergeBooks(remote, local);
-    const body = JSON.stringify(merged);
-    const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-    if (!rows[0]?._id) {
-      const created = await fetch(DIARY_URL, { method: 'POST', headers, body });
-      return created.ok ? merged : null;
-    }
-    const updated = await fetch(`${DIARY_URL}/${rows[0]._id}`, { method: 'PUT', headers, body });
-    return updated.ok ? merged : null;
+    const updated = await send(ITEM_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(merged),
+    });
+    return updated?.ok ? merged : null;
   } catch {
     return null;
   }

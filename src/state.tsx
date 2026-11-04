@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { pullDiary, pushDiary } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
-import { freshData, isProfileName, loadBook, saveBook, SESSION_KEY } from './lib/storage';
+import { freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
 import { booksEqual, mergeBooks } from './lib/sync';
 import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook } from './types';
 
@@ -78,6 +78,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const bookRef = useRef(book);
   const activeRef = useRef(activeId);
   const queue = useRef(Promise.resolve());
+  const mirror = useRef<ProfileBook | null>(null);
+  const seen = useRef<string | null>(null);
+  if (seen.current === null) seen.current = JSON.stringify(normalizeBook(book));
   bookRef.current = book;
   activeRef.current = activeId;
 
@@ -92,23 +95,32 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       return;
     }
     setSyncError(false);
+    const merged = mergeBooks(remote, bookRef.current);
+    mirror.current = booksEqual(merged, remote) ? merged : remote;
     setBook((current) => {
-      const merged = mergeBooks(remote, current);
-      return booksEqual(merged, current) ? current : merged;
+      const next = mergeBooks(remote, current);
+      return booksEqual(next, current) ? current : next;
     });
   }, []);
 
   const publish = useCallback(async () => {
-    const result = await pushDiary(bookRef.current);
+    const local = bookRef.current;
+    const serial = JSON.stringify(normalizeBook(local));
+    if (mirror.current && booksEqual(local, mirror.current)) {
+      seen.current = serial;
+      return;
+    }
+    if (!mirror.current && serial === seen.current) return;
+    const result = await pushDiary(local);
     if (!result) {
       setSyncError(true);
       return;
     }
+    const merged = mergeBooks(result, bookRef.current);
+    mirror.current = merged;
+    seen.current = JSON.stringify(normalizeBook(merged));
     setSyncError(false);
-    setBook((current) => {
-      const merged = mergeBooks(result, current);
-      return booksEqual(merged, current) ? current : merged;
-    });
+    setBook((current) => (booksEqual(merged, current) ? current : mergeBooks(result, current)));
   }, []);
 
   const active = book.profiles.find((profile) => profile.id === activeId) ?? null;
@@ -117,23 +129,13 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancel = false;
     enqueue(async () => {
-      const remote = await pullDiary();
-      if (cancel) return;
-      if (remote) {
-        setSyncError(false);
-        setBook((current) => {
-          const merged = mergeBooks(remote, current);
-          return booksEqual(merged, current) ? current : merged;
-        });
-      } else {
-        setSyncError(true);
-      }
+      await refresh();
       if (!cancel) setReady(true);
     });
     return () => {
       cancel = true;
     };
-  }, [enqueue]);
+  }, [enqueue, refresh]);
 
   useEffect(() => {
     saveBook(book);
@@ -151,7 +153,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const now = Date.now();
-      if (now - last < 8000) return;
+      if (now - last < 120000) return;
       last = now;
       enqueue(() => refresh());
     };

@@ -44,7 +44,7 @@ self.addEventListener('fetch', (event) => {
 
 async function networkFirst(request) {
   try {
-    const response = await fetch(request);
+    const response = await fetch(request, request.mode === 'navigate' ? { cache: 'no-cache' } : undefined);
     if (response.ok) {
       const cache = await caches.open(CACHE);
       cache.put(request, response.clone());

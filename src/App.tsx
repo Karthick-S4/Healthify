@@ -59,14 +59,26 @@ function Shell() {
   }, []);
 
   useEffect(() => {
-    const url = new URL('version.json', document.baseURI);
-    url.searchParams.set('ts', String(Date.now()));
-    fetch(url, { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { buildId?: string } | null) => {
-        if (body?.buildId && body.buildId !== __BUILD_ID__) setUpdateReady(true);
-      })
-      .catch(() => undefined);
+    const check = () => {
+      const url = new URL('version.json', document.baseURI);
+      url.searchParams.set('ts', String(Date.now()));
+      fetch(url, { cache: 'no-store' })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((body: { buildId?: string } | null) => {
+          if (body?.buildId && body.buildId !== __BUILD_ID__) setUpdateReady(true);
+        })
+        .catch(() => undefined);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    check();
+    document.addEventListener('visibilitychange', onVisible);
+    const timer = window.setInterval(check, 30 * 60 * 1000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(timer);
+    };
   }, []);
 
   useEffect(() => {

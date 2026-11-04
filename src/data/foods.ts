@@ -93,6 +93,12 @@ const ROWS: Row[] = [
   ['palak-paneer', 'Palak paneer', 'Mains', 180, 180, 'bowl', [], { bowlGrams: 180 }],
   ['kurma', 'Kurma', 'Mains', 145, 150, 'bowl', ['veg kurma'], { bowlGrams: 150 }],
   ['poriyal', 'Poriyal', 'Sides', 90, 100, 'bowl', ['stir fry', 'beans poriyal']],
+  ['potato-fry', 'Potato fry', 'Sides', 150, 100, 'bowl', ['aloo fry', 'potato roast', 'urulai roast', 'urulaikizhangu varuval', 'potato poriyal', 'aloo sabzi', 'aloo bhaji', 'jeera aloo'], { bowlGrams: 100 }],
+  ['bhindi-fry', 'Bhindi fry', 'Sides', 110, 100, 'bowl', ['okra fry', 'ladies finger fry', 'vendakkai poriyal', 'vendakkai fry', 'bhindi masala'], { bowlGrams: 100 }],
+  ['brinjal-fry', 'Brinjal fry', 'Sides', 120, 100, 'bowl', ['baingan fry', 'kathirikai poriyal', 'kathirikai fry', 'brinjal poriyal'], { bowlGrams: 100 }],
+  ['cabbage-poriyal', 'Cabbage poriyal', 'Sides', 85, 100, 'bowl', ['cabbage fry', 'cabbage sabzi', 'patta gobhi sabzi', 'muttaikose poriyal'], { bowlGrams: 100 }],
+  ['aloo-gobi', 'Aloo gobi', 'Sides', 106, 150, 'bowl', ['potato cauliflower', 'aloo gobhi'], { bowlGrams: 150 }],
+  ['chicken-fry', 'Chicken fry', 'Mains', 240, 100, 'serving', ['chicken 65', 'chicken varuval', 'pepper chicken', 'chicken sukka'], { bowlGrams: 100 }],
   ['salad', 'Salad', 'Sides', 35, 100, 'bowl', ['green salad']],
   ['raita', 'Raita', 'Sides', 70, 100, 'bowl', []],
   ['coconut-chutney', 'Coconut chutney', 'Sides', 195, 30, 'tbsp', ['chutney']],
@@ -144,6 +150,7 @@ const PROTEIN_PER_100G: Record<string, number> = {
   'tomato-chutney': 2, pickle: 2, papad: 23, sugar: 0, jaggery: 0.4, biscuit: 7, murukku: 9,
   'banana-chips': 2.3, samosa: 6, vada: 9, bajji: 6, bonda: 6, laddu: 6, 'mysore-pak': 4, payasam: 4,
   cake: 5, 'ice-cream': 3.5, chocolate: 7, almonds: 21, peanuts: 26, tea: 1.5, coffee: 1.6,
+  'potato-fry': 2, 'bhindi-fry': 2.5, 'brinjal-fry': 1.5, 'cabbage-poriyal': 2, 'aloo-gobi': 2.5, 'chicken-fry': 22,
   parotta: 6.5, khichdi: 4.5, 'butter-chicken': 12, 'gulab-jamun': 4, 'black-coffee': 0.1, 'green-tea': 0, juice: 0.7, cola: 0, lassi: 3, 'badam-milk': 3.5,
 };
 

@@ -1,5 +1,6 @@
 import type { Food } from '../types';
 import { correctQuery, estimateFromFoods } from './foods';
+import { estimateDish, ingredientVariants } from './dishEstimate';
 import { caloriesFromIndian } from './indianFoods';
 
 export type FoodLookup = {
@@ -134,15 +135,81 @@ async function fetchUsda(query: string, parent?: AbortSignal): Promise<FoodLooku
   }
 }
 
+type OffProduct = { product_name?: string; nutriments?: Record<string, unknown> };
+
+export function caloriesFromOpenFoodFacts(payload: unknown, query: string): FoodLookup | null {
+  if (!payload || typeof payload !== 'object' || !Array.isArray((payload as { products?: unknown }).products)) return null;
+  const ranked = ((payload as { products: unknown[] }).products)
+    .map((item) => {
+      const product = item as OffProduct;
+      const name = typeof product.product_name === 'string' ? product.product_name.trim() : '';
+      const raw = product.nutriments?.['energy-kcal_100g'];
+      const kcal = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : Number.NaN;
+      if (!name || !Number.isFinite(kcal) || kcal < 0 || kcal > 900) return null;
+      return { name, kcal, score: scoreName(query, name) };
+    })
+    .filter((item): item is { name: string; kcal: number; score: number } => item !== null && item.score >= 0.62)
+    .sort((a, b) => b.score - a.score);
+  if (ranked.length === 0) return null;
+  const best = ranked[0];
+  const cluster = ranked.filter((item) => best.score - item.score <= 0.05).slice(0, 5);
+  const kcals = cluster.map((item) => item.kcal).sort((a, b) => a - b);
+  const mid = kcals.length % 2 === 1 ? kcals[(kcals.length - 1) / 2] : (kcals[kcals.length / 2 - 1] + kcals[kcals.length / 2]) / 2;
+  return {
+    name: cluster.length === 1 ? best.name : query,
+    kcalPer100g: Math.round(mid),
+    source: 'Open Food Facts',
+    detail: cluster.length === 1 ? `Open Food Facts listing “${best.name}”` : `${cluster.length} Open Food Facts listings for this name`,
+  };
+}
+
+async function fetchJson(url: URL, parent?: AbortSignal): Promise<unknown> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  const onAbort = () => controller.abort();
+  parent?.addEventListener('abort', onAbort);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+    parent?.removeEventListener('abort', onAbort);
+  }
+}
+
+async function fetchOpenFoodFacts(query: string, signal?: AbortSignal): Promise<FoodLookup | null> {
+  const url = new URL('https://in.openfoodfacts.org/cgi/search.pl');
+  url.searchParams.set('search_terms', query);
+  url.searchParams.set('search_simple', '1');
+  url.searchParams.set('action', 'process');
+  url.searchParams.set('json', '1');
+  url.searchParams.set('page_size', '12');
+  url.searchParams.set('fields', 'product_name,nutriments');
+  return caloriesFromOpenFoodFacts(await fetchJson(url, signal), query);
+}
+
+function indianWithVariants(query: string): FoodLookup | null {
+  for (const variant of [query, ...ingredientVariants(query)]) {
+    const hit = caloriesFromIndian(variant);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 export async function lookupCalories(name: string, foods: Food[], signal?: AbortSignal): Promise<FoodLookup | null> {
   const corrected = correctQuery(name, foods) || name.trim().toLowerCase();
   if (!corrected) return null;
-  const indian = caloriesFromIndian(corrected);
+  const indian = indianWithVariants(corrected);
   if (indian) return indian;
+  const dish = estimateDish(corrected);
+  if (dish) return { ...dish, source: 'Healthify estimate' };
   const cached = readCache(corrected);
   if (cached) return cached;
-  const remote = await fetchUsda(corrected, signal);
+  const [usda, off] = await Promise.all([fetchUsda(corrected, signal), fetchOpenFoodFacts(corrected, signal)]);
   if (signal?.aborted) return null;
+  const remote = usda ?? off;
   if (remote) {
     writeCache(corrected, remote);
     return remote;

@@ -4,7 +4,6 @@ import { buildReports, targetForDay } from '../lib/budget';
 import { eachDate, todayISO } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { kcalFor } from '../lib/foods';
-import { isPassword } from '../lib/password';
 import { DAILY_MAX, DAILY_MIN, fromBackup } from '../lib/storage';
 import { homeStreak, onTargetStreak } from '../lib/streaks';
 import { useHealth } from '../state';
@@ -26,8 +25,6 @@ export function MoreView() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [kcalDraft, setKcalDraft] = useState('');
   const [gramsDraft, setGramsDraft] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [nextPassword, setNextPassword] = useState('');
   const [eraseText, setEraseText] = useState('');
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
   const streak = onTargetStreak(health.data.logs, today, (iso) => targetForDay(health.data, iso));
@@ -113,23 +110,6 @@ export function MoreView() {
     else health.tweakFood(food.id, { kcalPer100g, pieceGrams });
     setError(null);
     setMessage(`${food.name} updated.`);
-  }
-
-  async function onPassword(event: FormEvent) {
-    event.preventDefault();
-    if (!isPassword(nextPassword)) {
-      setError('Use a new password of at least 6 characters.');
-      return;
-    }
-    const ok = await health.changePassword(currentPassword, nextPassword);
-    if (!ok) {
-      setError('The current password doesn’t match.');
-      return;
-    }
-    setCurrentPassword('');
-    setNextPassword('');
-    setError(null);
-    setMessage('Password changed.');
   }
 
   return (
@@ -274,7 +254,7 @@ export function MoreView() {
 
       <section className="card">
         <h2>Backup</h2>
-        <p className="help">The file holds this profile’s diary. Keep it private. Restoring it replaces the meals on this profile and keeps the password you sign in with.</p>
+        <p className="help">The file holds this profile’s meals. Restoring it replaces those meals on every device.</p>
         <div className="composer-actions">
           <button
             type="button"
@@ -330,42 +310,15 @@ export function MoreView() {
           <li>Tap Share, then Add to Home Screen.</li>
           <li>On a Windows or Mac laptop, use Chrome or Edge and install it from the address-bar icon.</li>
         </ol>
-        <p className="help">After a new version is published, close Healthify and open it again. Meals stay on this device. The website code is public; the diary is not.</p>
+        <p className="help">After a new version is published, close Healthify and open it again. A profile’s meals show on the phone, tablet, and laptop.</p>
       </section>
-
-      <form className="card" onSubmit={(event) => void onPassword(event)}>
-        <h2>Password</h2>
-        <label className="field-label" htmlFor="current-password">
-          Current password
-        </label>
-        <input
-          id="current-password"
-          type="password"
-          autoComplete="current-password"
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-        />
-        <label className="field-label" htmlFor="next-password">
-          New password
-        </label>
-        <input
-          id="next-password"
-          type="password"
-          autoComplete="new-password"
-          value={nextPassword}
-          onChange={(event) => setNextPassword(event.target.value)}
-        />
-        <button className="primary" type="submit">
-          Change password
-        </button>
-      </form>
 
       <section className="card">
         <h2>{health.profileName ?? 'This profile'}</h2>
-        <button type="button" className="ghost" onClick={health.signOut}>
-          Sign out
+        <button type="button" className="ghost" onClick={health.switchProfile}>
+          Switch profile
         </button>
-        <p className="help">Type {health.profileName} to delete this profile’s diary on this device. Other profiles stay.</p>
+        <p className="help">Type {health.profileName} to delete this profile on every device. Other profiles stay.</p>
         <input value={eraseText} aria-label="Type the profile name to confirm" onChange={(event) => setEraseText(event.target.value)} />
         <button
           type="button"

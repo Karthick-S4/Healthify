@@ -43,7 +43,7 @@ function Shell() {
       .catch(() => undefined);
   }, []);
 
-  if (!health.signedIn) return <LockView />;
+  if (!health.profileId) return <LockView />;
 
   return (
     <div className="shell">

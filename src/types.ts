@@ -51,21 +51,24 @@ export type AppData = {
   tweaks: Record<string, FoodTweak>;
   dayTargets: Record<string, number>;
   logs: LogEntry[];
+  removedLogIds: string[];
+  removedFoodIds: string[];
+  removedTweakIds: string[];
   hintDismissed: boolean;
 };
 
 export type ProfileRecord = {
   id: string;
   name: string;
-  salt: string;
-  passwordHash: string;
-  legacyPinHash: string | null;
+  updatedAt: string;
   data: AppData;
 };
 
 export type ProfileBook = {
   version: 1;
+  updatedAt: string;
   profiles: ProfileRecord[];
+  removedProfileIds: string[];
 };
 
 export type PeriodKind = 'day' | 'week' | 'month' | 'custom';

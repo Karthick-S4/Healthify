@@ -1,9 +1,8 @@
 import type { AppData, Food, FoodTweak, LogEntry, Profile, ProfileBook, ProfileRecord } from '../types';
 
 export const STORAGE_KEY = 'healthify.v1';
-export const BOOK_KEY = 'healthify.profiles.v1';
+export const BOOK_KEY = 'healthify.shared.v1';
 export const SESSION_KEY = 'healthify.profile';
-export const UNLOCK_KEY = 'healthify.unlocked';
 export const DAILY_MIN = 1000;
 export const DAILY_MAX = 5000;
 
@@ -16,6 +15,9 @@ export function freshData(): AppData {
     tweaks: {},
     dayTargets: {},
     logs: [],
+    removedLogIds: [],
+    removedFoodIds: [],
+    removedTweakIds: [],
     hintDismissed: false,
   };
 }
@@ -57,6 +59,11 @@ function asLog(value: unknown): LogEntry | null {
     foodId: typeof log.foodId === 'string' ? log.foodId : undefined,
     createdAt: typeof log.createdAt === 'string' ? log.createdAt : new Date().toISOString(),
   };
+}
+
+function asIds(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return [...new Set(value.filter((item): item is string => typeof item === 'string' && item.length > 0))];
 }
 
 function asProfile(value: unknown): Profile {
@@ -109,6 +116,9 @@ export function normalizeData(value: unknown): AppData {
     tweaks,
     dayTargets,
     logs: Array.isArray(data.logs) ? data.logs.map(asLog).filter((log): log is LogEntry => log !== null) : [],
+    removedLogIds: asIds(data.removedLogIds),
+    removedFoodIds: asIds(data.removedFoodIds),
+    removedTweakIds: asIds(data.removedTweakIds),
     hintDismissed: Boolean(data.hintDismissed),
   };
 }
@@ -125,23 +135,25 @@ export function fromBackup(value: unknown): AppData | null {
   return null;
 }
 
+export function isProfileName(value: string): boolean {
+  const name = value.trim();
+  return name.length >= 1 && name.length <= 24 && /^[\p{L}\p{N}][\p{L}\p{N} '\-]*$/u.test(name);
+}
+
 export function emptyBook(): ProfileBook {
-  return { version: 1, profiles: [] };
+  return { version: 1, updatedAt: '', profiles: [], removedProfileIds: [] };
 }
 
 function asProfileRecord(value: unknown): ProfileRecord | null {
   if (!value || typeof value !== 'object') return null;
   const record = value as Partial<ProfileRecord>;
   if (typeof record.id !== 'string' || typeof record.name !== 'string') return null;
-  if (typeof record.salt !== 'string' || typeof record.passwordHash !== 'string') return null;
   const name = record.name.trim().slice(0, 24);
   if (!name) return null;
   return {
     id: record.id,
     name,
-    salt: record.salt,
-    passwordHash: record.passwordHash,
-    legacyPinHash: typeof record.legacyPinHash === 'string' ? record.legacyPinHash : null,
+    updatedAt: typeof record.updatedAt === 'string' ? record.updatedAt : '',
     data: normalizeData(record.data),
   };
 }
@@ -152,32 +164,22 @@ export function normalizeBook(value: unknown): ProfileBook {
   const profiles = Array.isArray(book.profiles)
     ? book.profiles.map(asProfileRecord).filter((item): item is ProfileRecord => item !== null)
     : [];
-  return { version: 1, profiles };
-}
-
-function legacyDiary(): ProfileRecord | null {
-  const legacy = loadData();
-  const used = Boolean(legacy.pinHash || legacy.logs.length > 0 || legacy.customFoods.length > 0 || Object.keys(legacy.dayTargets).length > 0);
-  if (!used) return null;
   return {
-    id: 'legacy',
-    name: 'My diary',
-    salt: '',
-    passwordHash: '',
-    legacyPinHash: legacy.pinHash,
-    data: legacy,
+    version: 1,
+    updatedAt: typeof book.updatedAt === 'string' ? book.updatedAt : '',
+    profiles,
+    removedProfileIds: asIds(book.removedProfileIds),
   };
 }
 
 export function loadBook(): ProfileBook {
   try {
     const raw = localStorage.getItem(BOOK_KEY);
-    if (raw) return normalizeBook(JSON.parse(raw));
+    if (!raw) return emptyBook();
+    return normalizeBook(JSON.parse(raw));
   } catch {
-    // A broken profile file falls through to the older single diary, if it is still there.
+    return emptyBook();
   }
-  const legacy = legacyDiary();
-  return legacy ? { version: 1, profiles: [legacy] } : emptyBook();
 }
 
 export function saveBook(book: ProfileBook): void {

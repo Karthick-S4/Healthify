@@ -1,29 +1,28 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { pullDiary, pushDiary } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
-import { hashPassword, newSalt } from './lib/password';
-import { hashPin, isPin } from './lib/pin';
-import { freshData, loadBook, saveBook, SESSION_KEY, UNLOCK_KEY } from './lib/storage';
+import { freshData, isProfileName, loadBook, saveBook, SESSION_KEY } from './lib/storage';
+import { booksEqual, mergeBooks } from './lib/sync';
 import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Undo = { ids: string[]; message: string };
-type ListedProfile = { id: string; name: string; legacy: boolean; needsPin: boolean };
-type ClaimResult = 'ok' | 'taken' | 'pin' | 'missing';
+type ListedProfile = { id: string; name: string };
+type CreateResult = 'ok' | 'taken' | 'invalid';
 
 type HealthApi = {
   data: AppData;
   foods: Food[];
-  signedIn: boolean;
+  loading: boolean;
+  syncError: boolean;
   profileName: string | null;
   profileId: string | null;
   profiles: ListedProfile[];
   undo: Undo | null;
-  signIn: (id: string, password: string) => Promise<boolean>;
-  createProfile: (name: string, password: string, dailyTarget: number) => Promise<ClaimResult>;
-  claimProfile: (id: string, name: string, password: string, pin: string) => Promise<ClaimResult>;
-  signOut: () => void;
-  changePassword: (current: string, next: string) => Promise<boolean>;
+  openProfile: (id: string) => void;
+  createProfile: (name: string, dailyTarget: number) => CreateResult;
+  switchProfile: () => void;
   removeProfile: (id: string) => void;
   dismissHint: () => void;
   setDailyTarget: (value: number) => void;
@@ -44,9 +43,17 @@ type HealthApi = {
 
 const HealthContext = createContext<HealthApi | null>(null);
 
-function readSession(): string | null {
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function stamp(book: ProfileBook, now = new Date().toISOString()): ProfileBook {
+  return { ...book, updatedAt: now };
+}
+
+function readSelected(): string | null {
   try {
-    return sessionStorage.getItem(SESSION_KEY);
+    return localStorage.getItem(SESSION_KEY);
   } catch {
     return null;
   }
@@ -54,26 +61,107 @@ function readSession(): string | null {
 
 function rememberProfile(id: string | null) {
   try {
-    sessionStorage.removeItem(UNLOCK_KEY);
-    if (id) sessionStorage.setItem(SESSION_KEY, id);
-    else sessionStorage.removeItem(SESSION_KEY);
+    if (id) localStorage.setItem(SESSION_KEY, id);
+    else localStorage.removeItem(SESSION_KEY);
   } catch {
-    // Signing in still works until this tab closes.
+    // The open profile still lasts until this page is closed.
   }
 }
 
 export function HealthProvider({ children }: { children: ReactNode }) {
   const [book, setBook] = useState<ProfileBook>(() => loadBook());
-  const [activeId, setActiveId] = useState<string | null>(() => readSession());
+  const [activeId, setActiveId] = useState<string | null>(() => readSelected());
   const [undo, setUndo] = useState<Undo | null>(null);
-
+  const [ready, setReady] = useState(false);
+  const [syncError, setSyncError] = useState(false);
   const [blank] = useState<AppData>(() => freshData());
-  const active = book.profiles.find((profile) => profile.id === activeId && profile.passwordHash) ?? null;
+  const bookRef = useRef(book);
+  const activeRef = useRef(activeId);
+  const queue = useRef(Promise.resolve());
+  bookRef.current = book;
+  activeRef.current = activeId;
+
+  const enqueue = useCallback((task: () => Promise<void>) => {
+    queue.current = queue.current.then(task, task);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const remote = await pullDiary();
+    if (!remote) {
+      setSyncError(true);
+      return;
+    }
+    setSyncError(false);
+    setBook((current) => {
+      const merged = mergeBooks(remote, current);
+      return booksEqual(merged, current) ? current : merged;
+    });
+  }, []);
+
+  const publish = useCallback(async () => {
+    const result = await pushDiary(bookRef.current);
+    if (!result) {
+      setSyncError(true);
+      return;
+    }
+    setSyncError(false);
+    setBook((current) => {
+      const merged = mergeBooks(result, current);
+      return booksEqual(merged, current) ? current : merged;
+    });
+  }, []);
+
+  const active = book.profiles.find((profile) => profile.id === activeId) ?? null;
   const data = active?.data ?? blank;
 
   useEffect(() => {
+    let cancel = false;
+    enqueue(async () => {
+      const remote = await pullDiary();
+      if (cancel) return;
+      if (remote) {
+        setSyncError(false);
+        setBook((current) => {
+          const merged = mergeBooks(remote, current);
+          return booksEqual(merged, current) ? current : merged;
+        });
+      } else {
+        setSyncError(true);
+      }
+      if (!cancel) setReady(true);
+    });
+    return () => {
+      cancel = true;
+    };
+  }, [enqueue]);
+
+  useEffect(() => {
     saveBook(book);
-  }, [book]);
+    if (!ready) return;
+    const timer = window.setTimeout(() => enqueue(() => publish()), 400);
+    return () => window.clearTimeout(timer);
+  }, [book, enqueue, publish, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let last = 0;
+    const onShow = () => {
+      if (document.visibilityState === 'hidden') {
+        enqueue(() => publish());
+        return;
+      }
+      const now = Date.now();
+      if (now - last < 8000) return;
+      last = now;
+      enqueue(() => refresh());
+    };
+    window.addEventListener('focus', onShow);
+    document.addEventListener('visibilitychange', onShow);
+    return () => {
+      window.removeEventListener('focus', onShow);
+      document.removeEventListener('visibilitychange', onShow);
+    };
+  }, [enqueue, publish, ready, refresh]);
 
   useEffect(() => {
     if (!undo) return;
@@ -84,109 +172,100 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const today = todayISO();
     setBook((bookNow) => {
-      const profile = bookNow.profiles.find((item) => item.id === activeId && item.passwordHash);
+      const profile = bookNow.profiles.find((item) => item.id === activeId);
       if (!profile || profile.data.dayTargets[today] != null) return bookNow;
-      return {
-        ...bookNow,
-        profiles: bookNow.profiles.map((item) =>
-          item.id === profile.id
-            ? {
-                ...item,
-                data: { ...item.data, dayTargets: { ...item.data.dayTargets, [today]: item.data.profile.dailyTarget } },
-              }
-            : item,
-        ),
-      };
+      const now = new Date().toISOString();
+      return stamp(
+        {
+          ...bookNow,
+          profiles: bookNow.profiles.map((item) =>
+            item.id === profile.id
+              ? {
+                  ...item,
+                  updatedAt: now,
+                  data: { ...item.data, dayTargets: { ...item.data.dayTargets, [today]: item.data.profile.dailyTarget } },
+                }
+              : item,
+          ),
+        },
+        now,
+      );
     });
   }, [activeId]);
+
+  useEffect(() => {
+    if (!ready || !activeId) return;
+    if (book.profiles.some((profile) => profile.id === activeId)) return;
+    setActiveId(null);
+    rememberProfile(null);
+  }, [activeId, book.profiles, ready]);
 
   const foods = useMemo(() => allFoods(data), [data]);
 
   const updateData = useCallback((recipe: (current: AppData) => AppData) => {
-    setBook((bookNow) => ({
-      ...bookNow,
-      profiles: bookNow.profiles.map((profile) =>
-        profile.id === activeId && profile.passwordHash ? { ...profile, data: recipe(profile.data) } : profile,
-      ),
-    }));
-  }, [activeId]);
+    const now = new Date().toISOString();
+    setBook((bookNow) => {
+      const profile = bookNow.profiles.find((item) => item.id === activeRef.current);
+      if (!profile) return bookNow;
+      return stamp(
+        {
+          ...bookNow,
+          profiles: bookNow.profiles.map((item) =>
+            item.id === profile.id ? { ...item, updatedAt: now, data: recipe(item.data) } : item,
+          ),
+        },
+        now,
+      );
+    });
+  }, []);
 
-  const signIn = useCallback(async (id: string, password: string) => {
-    const profile = book.profiles.find((item) => item.id === id && item.passwordHash);
-    if (!profile) return false;
-    const hashed = await hashPassword(password, profile.salt);
-    if (hashed !== profile.passwordHash) return false;
+  const openProfile = useCallback((id: string) => {
+    if (!bookRef.current.profiles.some((item) => item.id === id)) return;
     setActiveId(id);
     rememberProfile(id);
-    return true;
-  }, [book.profiles]);
+  }, []);
 
-  const createProfile = useCallback(async (name: string, password: string, dailyTarget: number) => {
+  const createProfile = useCallback((name: string, dailyTarget: number): CreateResult => {
     const clean = name.trim();
-    if (book.profiles.some((item) => item.name.toLowerCase() === clean.toLowerCase())) return 'taken' as const;
-    const salt = newSalt();
-    const passwordHash = await hashPassword(password, salt);
+    if (!isProfileName(clean)) return 'invalid';
     const id = crypto.randomUUID();
+    const now = new Date().toISOString();
     const today = todayISO();
-    const next = freshData();
-    next.profile = { ...next.profile, dailyTarget };
-    next.dayTargets = { [today]: dailyTarget };
-    setBook((bookNow) => ({
-      ...bookNow,
-      profiles: [...bookNow.profiles, { id, name: clean, salt, passwordHash, legacyPinHash: null, data: next }],
-    }));
+    let result: CreateResult = 'ok';
+    setBook((bookNow) => {
+      if (bookNow.profiles.some((item) => item.name.toLowerCase() === clean.toLowerCase())) {
+        result = 'taken';
+        return bookNow;
+      }
+      const next = freshData();
+      next.profile = { ...next.profile, dailyTarget };
+      next.dayTargets = { [today]: dailyTarget };
+      return stamp({ ...bookNow, profiles: [...bookNow.profiles, { id, name: clean, updatedAt: now, data: next }] }, now);
+    });
+    if (result !== 'ok') return result;
     setActiveId(id);
     rememberProfile(id);
-    return 'ok' as const;
-  }, [book.profiles]);
+    return 'ok';
+  }, []);
 
-  const claimProfile = useCallback(async (id: string, name: string, password: string, pin: string) => {
-    const clean = name.trim();
-    const profile = book.profiles.find((item) => item.id === id);
-    if (!profile) return 'missing' as const;
-    if (book.profiles.some((item) => item.id !== id && item.name.toLowerCase() === clean.toLowerCase())) return 'taken' as const;
-    if (profile.legacyPinHash) {
-      if (!isPin(pin)) return 'pin' as const;
-      const hashed = await hashPin(pin);
-      if (hashed !== profile.legacyPinHash) return 'pin' as const;
-    }
-    const salt = newSalt();
-    const passwordHash = await hashPassword(password, salt);
-    setBook((bookNow) => ({
-      ...bookNow,
-      profiles: bookNow.profiles.map((item) =>
-        item.id === id
-          ? { ...item, name: clean, salt, passwordHash, legacyPinHash: null, data: { ...item.data, pinHash: null } }
-          : item,
-      ),
-    }));
-    setActiveId(id);
-    rememberProfile(id);
-    return 'ok' as const;
-  }, [book.profiles]);
-
-  const signOut = useCallback(() => {
+  const switchProfile = useCallback(() => {
     setUndo(null);
     setActiveId(null);
     rememberProfile(null);
   }, []);
 
-  const changePassword = useCallback(async (current: string, next: string) => {
-    const profile = book.profiles.find((item) => item.id === activeId && item.passwordHash);
-    if (!profile) return false;
-    const hashed = await hashPassword(current, profile.salt);
-    if (hashed !== profile.passwordHash) return false;
-    const salt = newSalt();
-    const passwordHash = await hashPassword(next, salt);
-    setBook((bookNow) => ({
-      ...bookNow,
-      profiles: bookNow.profiles.map((item) => (item.id === activeId ? { ...item, salt, passwordHash } : item)),
-    }));
-    return true;
-  }, [activeId, book.profiles]);
-
   const removeProfile = useCallback((id: string) => {
-    setBook((bookNow) => ({ ...bookNow, profiles: bookNow.profiles.filter((item) => item.id !== id) }));
+    const now = new Date().toISOString();
+    setBook((bookNow) =>
+      stamp(
+        {
+          ...bookNow,
+          removedProfileIds: unique([...bookNow.removedProfileIds, id]),
+          profiles: bookNow.profiles.filter((item) => item.id !== id),
+        },
+        now,
+      ),
+    );
     setUndo(null);
     setActiveId((current) => {
       if (current !== id) return current;
@@ -244,14 +323,22 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   }, [updateData]);
 
   const removeLogs = useCallback((ids: string[]) => {
-    updateData((current) => ({ ...current, logs: current.logs.filter((log) => !ids.includes(log.id)) }));
+    updateData((current) => ({
+      ...current,
+      logs: current.logs.filter((log) => !ids.includes(log.id)),
+      removedLogIds: unique([...current.removedLogIds, ...ids]),
+    }));
   }, [updateData]);
 
   const undoLast = useCallback(() => {
     setUndo((current) => {
       if (current) {
         const ids = current.ids;
-        updateData((dataNow) => ({ ...dataNow, logs: dataNow.logs.filter((log) => !ids.includes(log.id)) }));
+        updateData((dataNow) => ({
+          ...dataNow,
+          logs: dataNow.logs.filter((log) => !ids.includes(log.id)),
+          removedLogIds: unique([...dataNow.removedLogIds, ...ids]),
+        }));
       }
       return null;
     });
@@ -261,6 +348,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     updateData((current) => ({
       ...current,
       customFoods: [food, ...current.customFoods.filter((item) => item.id !== food.id)],
+      removedFoodIds: current.removedFoodIds.filter((item) => item !== food.id),
     }));
   }, [updateData]);
 
@@ -272,31 +360,55 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   }, [updateData]);
 
   const deleteCustomFood = useCallback((id: string) => {
-    updateData((current) => ({ ...current, customFoods: current.customFoods.filter((food) => food.id !== id) }));
+    updateData((current) => ({
+      ...current,
+      customFoods: current.customFoods.filter((food) => food.id !== id),
+      removedFoodIds: unique([...current.removedFoodIds, id]),
+    }));
   }, [updateData]);
 
   const tweakFood = useCallback((id: string, tweak: FoodTweak | null) => {
     updateData((current) => {
       const tweaks = { ...current.tweaks };
+      const removedTweakIds = current.removedTweakIds.filter((item) => item !== id);
       if (tweak) tweaks[id] = tweak;
-      else delete tweaks[id];
-      return { ...current, tweaks };
+      else {
+        delete tweaks[id];
+        removedTweakIds.push(id);
+      }
+      return { ...current, tweaks, removedTweakIds };
     });
   }, [updateData]);
 
   const importData = useCallback((next: AppData) => {
-    updateData(() => ({ ...next, pinHash: null }));
+    updateData((current) => {
+      const nextLogs = new Set(next.logs.map((log) => log.id));
+      const nextFoods = new Set(next.customFoods.map((food) => food.id));
+      return {
+        ...next,
+        pinHash: null,
+        removedLogIds: unique([
+          ...current.removedLogIds,
+          ...next.removedLogIds,
+          ...current.logs.map((log) => log.id).filter((id) => !nextLogs.has(id)),
+        ]),
+        removedFoodIds: unique([
+          ...current.removedFoodIds,
+          ...next.removedFoodIds,
+          ...current.customFoods.map((food) => food.id).filter((id) => !nextFoods.has(id)),
+        ]),
+        removedTweakIds: unique([
+          ...current.removedTweakIds,
+          ...next.removedTweakIds,
+          ...Object.keys(current.tweaks).filter((id) => next.tweaks[id] == null),
+        ]),
+      };
+    });
     setUndo(null);
   }, [updateData]);
 
   const profiles = useMemo<ListedProfile[]>(
-    () =>
-      book.profiles.map((profile) => ({
-        id: profile.id,
-        name: profile.name,
-        legacy: !profile.passwordHash,
-        needsPin: Boolean(profile.legacyPinHash),
-      })),
+    () => book.profiles.map((profile) => ({ id: profile.id, name: profile.name })),
     [book.profiles],
   );
 
@@ -304,16 +416,15 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     () => ({
       data,
       foods,
-      signedIn: active != null,
+      loading: !ready,
+      syncError,
       profileName: active?.name ?? null,
       profileId: active?.id ?? null,
       profiles,
       undo,
-      signIn,
+      openProfile,
       createProfile,
-      claimProfile,
-      signOut,
-      changePassword,
+      switchProfile,
       removeProfile,
       dismissHint,
       setDailyTarget,
@@ -334,14 +445,14 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     [
       data,
       foods,
+      ready,
+      syncError,
       active,
       profiles,
       undo,
-      signIn,
+      openProfile,
       createProfile,
-      claimProfile,
-      signOut,
-      changePassword,
+      switchProfile,
       removeProfile,
       dismissHint,
       setDailyTarget,

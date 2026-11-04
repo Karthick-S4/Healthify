@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { caloriesFromIndian } from './indianFoods';
 import { caloriesFromUsda } from './lookupFood';
-import { freshData, fromBackup, normalizeBook } from './storage';
-import { isPassword, isProfileName } from './password';
+import { freshData, fromBackup, isProfileName, normalizeBook } from './storage';
 
 const listing = (description: string, kcal: number, dataType = 'Survey (FNDDS)') => ({
   description,
@@ -97,11 +96,9 @@ describe('profiles', () => {
     expect(fromBackup({ version: 2, diary: { version: 1 } })).toBeNull();
   });
 
-  it('drops a broken profile and checks a name and password', () => {
-    expect(normalizeBook({ version: 1, profiles: [{ id: 'x' }, { id: 'ok', name: 'Priya', salt: 'aa', passwordHash: 'bb', data: freshData() }] }).profiles).toHaveLength(1);
+  it('drops a broken profile and checks a name', () => {
+    expect(normalizeBook({ version: 1, profiles: [{ id: 'x' }, { id: 'ok', name: 'Priya', updatedAt: '2026-11-04T00:00:00.000Z', data: freshData() }] }).profiles).toHaveLength(1);
     expect(isProfileName('Priya')).toBe(true);
     expect(isProfileName('')).toBe(false);
-    expect(isPassword('secret')).toBe(true);
-    expect(isPassword('1234')).toBe(false);
   });
 });

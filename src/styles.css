@@ -238,6 +238,8 @@ input, .pin-input {
 .file-button input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
 .target-grid, .seg { display: flex; gap: 8px; }
+.lock .target-grid { flex-wrap: wrap; }
+.lock .target-grid .choice { flex: 1 1 72px; }
 .choice, .seg button { flex: 1; }
 .seg { flex-wrap: wrap; }
 .seg button { flex: 1 1 72px; }

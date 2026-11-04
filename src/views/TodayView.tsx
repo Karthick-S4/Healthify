@@ -115,7 +115,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       if (controller.signal.aborted) return;
       setLooking(false);
       if (!hit) return;
-      const grams = unknown.grams ?? suggestedGrams(unknown.name, health.foods) ?? 100;
+      const grams = unknown.grams ?? hit.servingGrams ?? suggestedGrams(unknown.name, health.foods) ?? 100;
       setLookup(hit);
       setNameDraft(displayName(hit.name));
       setGramsDraft(String(Math.round(grams)));

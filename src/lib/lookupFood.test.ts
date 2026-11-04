@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { caloriesFromIndian } from './indianFoods';
 import { caloriesFromUsda } from './lookupFood';
 import { freshData, fromBackup, normalizeBook } from './storage';
 import { isPassword, isProfileName } from './password';
@@ -52,6 +53,28 @@ describe('caloriesFromUsda', () => {
 
   it('ignores a search that does not match the words', () => {
     expect(caloriesFromUsda({ foods: [listing('Apple juice', 46)] }, 'dragon fruit')).toBeNull();
+  });
+});
+
+describe('caloriesFromIndian', () => {
+  it('uses the plain idli and sambar recipes', () => {
+    expect(caloriesFromIndian('idli')).toMatchObject({ name: 'Idli', kcalPer100g: 138, servingGrams: 25, source: 'Indian Nutrient Databank' });
+    expect(caloriesFromIndian('sambar')).toMatchObject({ name: 'Sambar', kcalPer100g: 97, servingGrams: 257 });
+  });
+
+  it('matches a biryani typo to the Indian recipes and leaves chicken biryani for a closer listing', () => {
+    const hit = caloriesFromIndian('biriyani');
+    expect(hit?.source).toBe('Indian Nutrient Databank');
+    expect(hit?.kcalPer100g).toBeGreaterThan(160);
+    expect(hit?.kcalPer100g).toBeLessThan(210);
+    expect(caloriesFromIndian('chicken biryani')).toBeNull();
+  });
+
+  it('finds rasam and has no pongal', () => {
+    const rasam = caloriesFromIndian('rasam');
+    expect(rasam?.kcalPer100g).toBeLessThan(40);
+    expect(rasam?.name.toLowerCase()).not.toContain('powder');
+    expect(caloriesFromIndian('pongal')).toBeNull();
   });
 });
 

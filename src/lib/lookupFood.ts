@@ -1,9 +1,11 @@
 import type { Food } from '../types';
 import { correctQuery, estimateFromFoods } from './foods';
+import { caloriesFromIndian } from './indianFoods';
 
 export type FoodLookup = {
   name: string;
   kcalPer100g: number;
+  servingGrams?: number | null;
   source: string;
   detail: string;
 };
@@ -135,6 +137,8 @@ async function fetchUsda(query: string, parent?: AbortSignal): Promise<FoodLooku
 export async function lookupCalories(name: string, foods: Food[], signal?: AbortSignal): Promise<FoodLookup | null> {
   const corrected = correctQuery(name, foods) || name.trim().toLowerCase();
   if (!corrected) return null;
+  const indian = caloriesFromIndian(corrected);
+  if (indian) return indian;
   const cached = readCache(corrected);
   if (cached) return cached;
   const remote = await fetchUsda(corrected, signal);

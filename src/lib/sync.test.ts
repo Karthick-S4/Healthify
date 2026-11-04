@@ -51,6 +51,18 @@ describe('mergeBooks', () => {
     expect(merged.profiles[0]?.data.logs[0]?.kcal).toBe(90);
   });
 
+  it('joins profiles with the same name made on different devices', () => {
+    const idli = { ...apple, id: 'meal-2', title: 'Idli', kcal: 175 };
+    const laptop = book([profile('b-laptop', 'Priya', '2026-11-04T01:00:00.000Z', [apple])]);
+    const phone = book([profile('a-phone', 'priya', '2026-11-04T02:00:00.000Z', [idli])]);
+    const merged = mergeBooks(laptop, phone);
+    expect(merged.profiles).toHaveLength(1);
+    expect(merged.profiles[0]?.id).toBe('a-phone');
+    expect(merged.profiles[0]?.data.logs.map((log) => log.title).sort()).toEqual(['Apple', 'Idli']);
+    expect(merged.removedProfileIds).toContain('b-laptop');
+    expect(mergeBooks(phone, laptop).profiles[0]?.id).toBe('a-phone');
+  });
+
   it('drops a profile record that has no name', () => {
     expect(normalizeBook({ version: 1, profiles: [{ id: 'x' }, { id: 'ok', name: 'Priya', data: freshData() }] }).profiles).toHaveLength(1);
   });

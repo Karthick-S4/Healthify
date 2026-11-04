@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { DevicesCard } from '../components/DevicesCard';
 import { isProfileName } from '../lib/storage';
 import { useHealth } from '../state';
 
@@ -9,6 +10,12 @@ export function LockView() {
   const [error, setError] = useState<string | null>(null);
   const hasProfiles = health.profiles.length > 0;
   const showCreate = creating || name.trim().length > 0 || !hasProfiles;
+  const syncNote =
+    health.sync === 'checking' ? (
+      <p className="help">Checking your other devices…</p>
+    ) : health.sync === 'failed' ? (
+      <p className="help">GitHub didn’t answer, so this shows profiles saved on this device.</p>
+    ) : null;
 
   function onCreate(event: FormEvent) {
     event.preventDefault();
@@ -60,10 +67,7 @@ export function LockView() {
             </button>
           )}
           <p className="help">There is no password. Anyone who opens this page can choose a profile.</p>
-          {health.loading && <p className="help">Checking your other devices…</p>}
-          {!health.loading && health.syncError && (
-            <p className="help">The shared diary didn’t answer. A profile saved here stays on this device and shows on the others when the connection is back.</p>
-          )}
+          {syncNote}
         </form>
       ) : (
         <form
@@ -90,12 +94,10 @@ export function LockView() {
             Create a profile
           </button>
           <p className="help">There is no password. Anyone who opens this page can choose a profile.</p>
-          {health.loading && <p className="help">Checking your other devices…</p>}
-          {!health.loading && health.syncError && (
-            <p className="help">Showing profiles saved on this device. The shared diary didn’t answer just now.</p>
-          )}
+          {syncNote}
         </form>
       )}
+      {(health.sync === 'off' || health.sync === 'bad-key') && <DevicesCard />}
     </div>
   );
 }

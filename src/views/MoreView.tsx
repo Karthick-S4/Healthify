@@ -1,4 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { DevicesCard } from '../components/DevicesCard';
 import { BUILT_IN_FOODS } from '../data/foods';
 import { buildReports } from '../lib/budget';
 import { eachDate, todayISO } from '../lib/dates';
@@ -238,6 +239,8 @@ export function MoreView() {
           </ul>
         )}
       </section>
+
+      <DevicesCard />
 
       <section className="card">
         <h2>{health.profileName ?? 'This profile'}</h2>

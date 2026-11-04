@@ -2,14 +2,60 @@ import { normalizeBook } from './storage';
 import { mergeBooks } from './sync';
 import type { ProfileBook } from '../types';
 
-const ITEM_URL = 'https://crudcrud.com/api/507f3b82f30f4b01a6c6d258e4146607/diary/6aeaf809062f2b03e883fa27';
-const TIMEOUT_MS = 8000;
+const REPO = 'Karthick-S4/Healthify-data';
+const FILE_URL = `https://api.github.com/repos/${REPO}/contents/diary.json`;
+const KEY_STORAGE = 'healthify.sync.v1';
+const LINK_PARAM = 'connect';
+const TIMEOUT_MS = 10000;
 
-async function send(url: string, init: RequestInit = {}): Promise<Response | null> {
+export type PullResult = { kind: 'ok'; book: ProfileBook } | { kind: 'no-key' } | { kind: 'bad-key' } | { kind: 'failed' };
+
+type Remote = { book: ProfileBook | null; sha: string | null };
+
+export function readSyncKey(): string | null {
+  try {
+    return localStorage.getItem(KEY_STORAGE);
+  } catch {
+    return null;
+  }
+}
+
+export function saveSyncKey(key: string | null) {
+  try {
+    if (key) localStorage.setItem(KEY_STORAGE, key.trim());
+    else localStorage.removeItem(KEY_STORAGE);
+  } catch {
+    // Without storage the key lasts until the page is closed.
+  }
+}
+
+export function captureLinkKey() {
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const key = params.get(LINK_PARAM);
+  if (!key) return;
+  saveSyncKey(key);
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
+export function deviceLink(key: string): string {
+  return `${window.location.origin}${window.location.pathname}#${LINK_PARAM}=${encodeURIComponent(key)}`;
+}
+
+async function send(url: string, key: string, init: RequestInit = {}): Promise<Response | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, { ...init, cache: 'no-store', signal: controller.signal });
+    return await fetch(url, {
+      ...init,
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${key}`,
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(init.headers ?? {}),
+      },
+    });
   } catch {
     return null;
   } finally {
@@ -17,32 +63,79 @@ async function send(url: string, init: RequestInit = {}): Promise<Response | nul
   }
 }
 
-async function readDiary(): Promise<ProfileBook | null> {
-  const response = await send(ITEM_URL, { headers: { Accept: 'application/json' } });
-  if (!response?.ok) return null;
-  return normalizeBook(await response.json());
+function fromBase64(value: string): string {
+  const binary = atob(value.replace(/\s/g, ''));
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
 }
 
-export async function pullDiary(): Promise<ProfileBook | null> {
+function toBase64(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (let index = 0; index < bytes.length; index += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000));
+  }
+  return btoa(binary);
+}
+
+class KeyError extends Error {}
+
+async function readRemote(key: string): Promise<Remote | null> {
+  const response = await send(FILE_URL, key);
+  if (!response) return null;
+  if (response.status === 401 || response.status === 403) throw new KeyError();
+  if (response.status === 404) {
+    const repo = await send(`https://api.github.com/repos/${REPO}`, key);
+    if (repo?.status === 404 || repo?.status === 401 || repo?.status === 403) throw new KeyError();
+    return repo?.ok ? { book: null, sha: null } : null;
+  }
+  if (!response.ok) return null;
+  const file = (await response.json()) as { sha: string; content?: string; git_url?: string };
+  let content = file.content ?? '';
+  if (!content && file.git_url) {
+    const blob = await send(file.git_url, key);
+    if (!blob?.ok) return null;
+    content = ((await blob.json()) as { content: string }).content;
+  }
+  return { book: content ? normalizeBook(JSON.parse(fromBase64(content))) : null, sha: file.sha };
+}
+
+export async function pullDiary(): Promise<PullResult> {
+  const key = readSyncKey();
+  if (!key) return { kind: 'no-key' };
   try {
-    return await readDiary();
-  } catch {
-    return null;
+    const remote = await readRemote(key);
+    if (!remote) return { kind: 'failed' };
+    return { kind: 'ok', book: remote.book ?? normalizeBook({}) };
+  } catch (error) {
+    return { kind: error instanceof KeyError ? 'bad-key' : 'failed' };
   }
 }
 
-export async function pushDiary(local: ProfileBook): Promise<ProfileBook | null> {
+export async function pushDiary(local: ProfileBook): Promise<PullResult> {
+  const key = readSyncKey();
+  if (!key) return { kind: 'no-key' };
   try {
-    const remote = await readDiary();
-    if (!remote) return null;
-    const merged = mergeBooks(remote, local);
-    const updated = await send(ITEM_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(merged),
-    });
-    return updated?.ok ? merged : null;
-  } catch {
-    return null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const remote = await readRemote(key);
+      if (!remote) return { kind: 'failed' };
+      const merged = remote.book ? mergeBooks(remote.book, local) : local;
+      const response = await send(FILE_URL, key, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Update diary',
+          content: toBase64(JSON.stringify(merged)),
+          ...(remote.sha ? { sha: remote.sha } : {}),
+        }),
+      });
+      if (!response) return { kind: 'failed' };
+      if (response.ok) return { kind: 'ok', book: merged };
+      if (response.status === 401 || response.status === 403) return { kind: 'bad-key' };
+      if (response.status !== 409 && response.status !== 422) return { kind: 'failed' };
+    }
+    return { kind: 'failed' };
+  } catch (error) {
+    return { kind: error instanceof KeyError ? 'bad-key' : 'failed' };
   }
 }

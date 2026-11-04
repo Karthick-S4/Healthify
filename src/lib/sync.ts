@@ -65,10 +65,25 @@ export function mergeBooks(left: ProfileBook, right: ProfileBook): ProfileBook {
     const existing = profiles.get(profile.id);
     profiles.set(profile.id, existing ? mergeProfiles(existing, profile) : profile);
   }
+  const named: ProfileRecord[] = [];
+  const slots = new Map<string, number>();
+  for (const profile of profiles.values()) {
+    const key = profile.name.trim().toLocaleLowerCase();
+    const slot = slots.get(key);
+    if (slot === undefined) {
+      slots.set(key, named.length);
+      named.push(profile);
+      continue;
+    }
+    const kept = named[slot];
+    const keepId = kept.id < profile.id ? kept.id : profile.id;
+    removed.add(keepId === kept.id ? profile.id : kept.id);
+    named[slot] = { ...mergeProfiles(kept, profile), id: keepId };
+  }
   return {
     version: 1,
     updatedAt: time(right.updatedAt) >= time(left.updatedAt) ? right.updatedAt : left.updatedAt,
-    profiles: [...profiles.values()],
+    profiles: named,
     removedProfileIds: [...removed],
   };
 }

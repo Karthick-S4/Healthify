@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { pullDiary, pushDiary } from './lib/cloud';
+import { captureLinkKey, deviceLink, pullDiary, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
 import { freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
@@ -10,12 +10,17 @@ type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Undo = { ids: string[]; message: string };
 type ListedProfile = { id: string; name: string };
 type CreateResult = 'ok' | 'taken' | 'invalid';
+export type SyncStatus = 'off' | 'checking' | 'ok' | 'failed' | 'bad-key';
 
 type HealthApi = {
   data: AppData;
   foods: Food[];
   loading: boolean;
   syncError: boolean;
+  sync: SyncStatus;
+  connect: (key: string) => Promise<SyncStatus>;
+  disconnect: () => void;
+  linkForDevice: () => string | null;
   profileName: string | null;
   profileId: string | null;
   profiles: ListedProfile[];
@@ -68,12 +73,22 @@ function rememberProfile(id: string | null) {
   }
 }
 
+function statusOf(result: PullResult): SyncStatus {
+  if (result.kind === 'no-key') return 'off';
+  return result.kind;
+}
+
 export function HealthProvider({ children }: { children: ReactNode }) {
-  const [book, setBook] = useState<ProfileBook>(() => loadBook());
+  const [book, setBook] = useState<ProfileBook>(() => {
+    captureLinkKey();
+    return loadBook();
+  });
   const [activeId, setActiveId] = useState<string | null>(() => readSelected());
   const [undo, setUndo] = useState<Undo | null>(null);
   const [ready, setReady] = useState(false);
-  const [syncError, setSyncError] = useState(false);
+  const [sync, setSync] = useState<SyncStatus>(() => (readSyncKey() ? 'checking' : 'off'));
+  const syncError = sync === 'failed';
+  const activeName = useRef<string | null>(null);
   const [blank] = useState<AppData>(() => freshData());
   const bookRef = useRef(book);
   const activeRef = useRef(activeId);
@@ -84,23 +99,25 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   bookRef.current = book;
   activeRef.current = activeId;
 
-  const enqueue = useCallback((task: () => Promise<void>) => {
-    queue.current = queue.current.then(task, task);
+  const enqueue = useCallback((task: () => Promise<unknown>) => {
+    const run = async () => {
+      await task();
+    };
+    queue.current = queue.current.then(run, run);
   }, []);
 
-  const refresh = useCallback(async () => {
-    const remote = await pullDiary();
-    if (!remote) {
-      setSyncError(true);
-      return;
-    }
-    setSyncError(false);
+  const refresh = useCallback(async (): Promise<SyncStatus> => {
+    const result = await pullDiary();
+    setSync(statusOf(result));
+    if (result.kind !== 'ok') return statusOf(result);
+    const remote = result.book;
     const merged = mergeBooks(remote, bookRef.current);
     mirror.current = booksEqual(merged, remote) ? merged : remote;
     setBook((current) => {
       const next = mergeBooks(remote, current);
       return booksEqual(next, current) ? current : next;
     });
+    return 'ok';
   }, []);
 
   const publish = useCallback(async () => {
@@ -112,15 +129,41 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     }
     if (!mirror.current && serial === seen.current) return;
     const result = await pushDiary(local);
-    if (!result) {
-      setSyncError(true);
-      return;
-    }
-    const merged = mergeBooks(result, bookRef.current);
+    setSync(statusOf(result));
+    if (result.kind !== 'ok') return;
+    const remote = result.book;
+    const merged = mergeBooks(remote, bookRef.current);
     mirror.current = merged;
     seen.current = JSON.stringify(normalizeBook(merged));
-    setSyncError(false);
-    setBook((current) => (booksEqual(merged, current) ? current : mergeBooks(result, current)));
+    setBook((current) => (booksEqual(merged, current) ? current : mergeBooks(remote, current)));
+  }, []);
+
+  const connect = useCallback(
+    (key: string) =>
+      new Promise<SyncStatus>((resolve) => {
+        saveSyncKey(key);
+        mirror.current = null;
+        seen.current = '';
+        setSync('checking');
+        enqueue(async () => {
+          const status = await refresh();
+          if (status === 'bad-key') saveSyncKey(null);
+          if (status === 'ok') await publish();
+          resolve(status);
+        });
+      }),
+    [enqueue, publish, refresh],
+  );
+
+  const disconnect = useCallback(() => {
+    saveSyncKey(null);
+    mirror.current = null;
+    setSync('off');
+  }, []);
+
+  const linkForDevice = useCallback(() => {
+    const key = readSyncKey();
+    return key ? deviceLink(key) : null;
   }, []);
 
   const active = book.profiles.find((profile) => profile.id === activeId) ?? null;
@@ -153,13 +196,17 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const now = Date.now();
-      if (now - last < 120000) return;
+      if (now - last < 15000) return;
       last = now;
       enqueue(() => refresh());
     };
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && readSyncKey()) enqueue(() => refresh());
+    }, 60000);
     window.addEventListener('focus', onShow);
     document.addEventListener('visibilitychange', onShow);
     return () => {
+      window.clearInterval(poll);
       window.removeEventListener('focus', onShow);
       document.removeEventListener('visibilitychange', onShow);
     };
@@ -196,10 +243,16 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   }, [activeId]);
 
   useEffect(() => {
-    if (!ready || !activeId) return;
-    if (book.profiles.some((profile) => profile.id === activeId)) return;
-    setActiveId(null);
-    rememberProfile(null);
+    if (!activeId) return;
+    const current = book.profiles.find((profile) => profile.id === activeId);
+    if (current) {
+      activeName.current = current.name.trim().toLocaleLowerCase();
+      return;
+    }
+    if (!ready) return;
+    const sameName = book.profiles.find((profile) => profile.name.trim().toLocaleLowerCase() === activeName.current);
+    setActiveId(sameName?.id ?? null);
+    rememberProfile(sameName?.id ?? null);
   }, [activeId, book.profiles, ready]);
 
   const foods = useMemo(() => allFoods(data), [data]);
@@ -418,6 +471,10 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       foods,
       loading: !ready,
       syncError,
+      sync,
+      connect,
+      disconnect,
+      linkForDevice,
       profileName: active?.name ?? null,
       profileId: active?.id ?? null,
       profiles,
@@ -447,6 +504,10 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       foods,
       ready,
       syncError,
+      sync,
+      connect,
+      disconnect,
+      linkForDevice,
       active,
       profiles,
       undo,

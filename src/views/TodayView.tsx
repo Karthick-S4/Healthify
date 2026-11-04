@@ -289,7 +289,23 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         <div>
           <h1 className="brand-sm">Healthify</h1>
           {health.profileName && <p className="who">{health.profileName}</p>}
-          {health.syncError && <p className="help">Saved on this device for now. It will show on the others when the connection is back.</p>}
+          {health.sync === 'failed' && <p className="help">Saved here. GitHub didn’t answer, so your other devices get it on the next try.</p>}
+          {health.sync === 'off' && (
+            <p className="help">
+              This device isn’t sharing meals yet.{' '}
+              <button type="button" className="text-button" onClick={onOpenMore}>
+                Connect it
+              </button>
+            </p>
+          )}
+          {health.sync === 'bad-key' && (
+            <p className="help">
+              The sharing key stopped working.{' '}
+              <button type="button" className="text-button" onClick={onOpenMore}>
+                Fix it in More
+              </button>
+            </p>
+          )}
         </div>
         <p className="dateline">{formatLong(today)}</p>
       </header>

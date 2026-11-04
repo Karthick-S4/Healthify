@@ -4,7 +4,7 @@ import { BUILT_IN_FOODS } from '../data/foods';
 import { buildReports, planOn, rangeBudget } from '../lib/budget';
 import { addDays, eachDate, formatRange, formatShort, todayISO } from '../lib/dates';
 import { formatKcal } from '../lib/format';
-import { kcalFor } from '../lib/foods';
+import { kcalFor, searchFoods } from '../lib/foods';
 import { DAILY_MAX, DAILY_MIN, FIRST_DAY } from '../lib/storage';
 import { useHealth } from '../state';
 import type { CustomRange, Food } from '../types';
@@ -32,11 +32,8 @@ export function MoreView() {
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
 
   const visibleFoods = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const source = needle ? health.foods : health.foods.filter((food) => food.source === 'custom');
-    return source
-      .filter((food) => !needle || food.name.toLowerCase().includes(needle) || food.aliases.some((alias) => alias.includes(needle)))
-      .slice(0, 24);
+    if (!query.trim()) return health.foods.filter((food) => food.source === 'custom').slice(0, 24);
+    return searchFoods(query, health.foods);
   }, [health.foods, query]);
 
   function saveTargets(event: FormEvent) {

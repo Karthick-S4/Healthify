@@ -280,7 +280,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
 
   const pending = queue[0];
   const pendingKcal = pending?.kind === 'need-grams' && Number(gramsDraft) > 0 ? kcalFor(pending.food, Number(gramsDraft)) : null;
-  const alternates = pending?.kind === 'unknown' ? closeFoods(pending.name, health.foods) : [];
+  const alternates = pending?.kind === 'unknown' ? closeFoods(pending.name, health.foods, 4, 'any') : [];
 
   return (
     <div className="page today-page">

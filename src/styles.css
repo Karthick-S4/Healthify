@@ -749,6 +749,10 @@ input[type='date'] { min-height: 50px; }
 .star-day.skipped circle { fill: var(--muted); opacity: 0.45; }
 .star-day.cheat path { fill: var(--cheat); stroke: var(--cheat); stroke-width: 1; filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--cheat) 45%, transparent)); }
 .star-day.cheat span { color: var(--cheat-ink); }
+.star-day.cheat path.slice, .cheat-icon path.slice { fill: color-mix(in srgb, var(--cheat) 55%, #fff); stroke: var(--cheat); stroke-width: 1; stroke-linejoin: round; filter: none; }
+.star-day.cheat path.crust, .cheat-icon path.crust { fill: none; stroke: var(--cheat-ink); stroke-width: 3; stroke-linecap: round; filter: none; }
+.star-day.cheat circle.topping, .cheat-icon circle.topping { fill: var(--cheat-ink); }
+.star-day.cheat svg { filter: drop-shadow(0 2px 4px color-mix(in srgb, var(--cheat) 40%, transparent)); }
 .cheat-toggle { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow), inset 0 1px 0 var(--glass-shine); }
 .cheat-toggle.on { background: color-mix(in srgb, var(--cheat) 16%, var(--glass)); border-color: color-mix(in srgb, var(--cheat) 45%, transparent); }
 .cheat-icon { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--cheat) 14%, transparent); }

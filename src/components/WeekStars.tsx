@@ -17,8 +17,11 @@ export function StarIcon({ mark = 'done' }: { mark?: WeekMark }) {
         <path d="M8.5 8.5l7 7M15.5 8.5l-7 7" />
       ) : mark === 'cheat' ? (
         <>
-          <path d="M11 3.5l1.9 5.4 5.4 1.9-5.4 1.9L11 18.1l-1.9-5.4-5.4-1.9 5.4-1.9z" />
-          <path className="spark" d="M18.5 14.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z" />
+          <path className="slice" d="M4.6 8.4C9.4 6.4 14.6 6.4 19.4 8.4L12 21.4Z" />
+          <path className="crust" d="M3.8 7.4C9 4.9 15 4.9 20.2 7.4" />
+          <circle className="topping" cx="10" cy="11.4" r="1.6" />
+          <circle className="topping" cx="14.4" cy="12" r="1.35" />
+          <circle className="topping" cx="12" cy="16.2" r="1.25" />
         </>
       ) : mark === 'skipped' ? (
         <circle cx="12" cy="12" r="2.2" />

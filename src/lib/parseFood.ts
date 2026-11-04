@@ -130,6 +130,17 @@ function titleFor(food: Food, quantity: Exclude<Quantity, { mode: 'grams-missing
   return `${food.name}, ${formatCount(quantity.count)} ${unitWord(quantity.unit, quantity.count)}`;
 }
 
+function assumedGrams(quantity: Quantity): number | null {
+  if (quantity.mode === 'grams') return quantity.grams;
+  if (quantity.mode === 'each-grams') return quantity.gramsEach * quantity.count;
+  if (quantity.mode === 'household') {
+    const one =
+      quantity.unit === 'tbsp' ? 15 : quantity.unit === 'tsp' ? 5 : quantity.unit === 'bowl' ? 250 : quantity.unit === 'plate' ? 300 : 200;
+    return one * quantity.count;
+  }
+  return null;
+}
+
 function invalidAmount(count: number, grams: number): string | null {
   if (!Number.isFinite(count) || !Number.isFinite(grams) || count <= 0 || grams <= 0) {
     return 'Use a quantity bigger than zero.';
@@ -150,7 +161,7 @@ export function parseOne(raw: string, foods: Food[]): ParsedItem | null {
       kind: 'unknown',
       name: quantity.name,
       count,
-      grams: quantity.mode === 'grams' ? quantity.grams : quantity.mode === 'each-grams' ? quantity.gramsEach * quantity.count : null,
+      grams: assumedGrams(quantity),
     };
   }
 

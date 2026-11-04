@@ -4,7 +4,7 @@ import { buildReports, targetForDay } from '../lib/budget';
 import { eachDate, todayISO } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { kcalFor } from '../lib/foods';
-import { hashPin, isPin } from '../lib/pin';
+import { isPassword } from '../lib/password';
 import { DAILY_MAX, DAILY_MIN, fromBackup } from '../lib/storage';
 import { homeStreak, onTargetStreak } from '../lib/streaks';
 import { useHealth } from '../state';
@@ -26,8 +26,8 @@ export function MoreView() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [kcalDraft, setKcalDraft] = useState('');
   const [gramsDraft, setGramsDraft] = useState('');
-  const [currentPin, setCurrentPin] = useState('');
-  const [nextPin, setNextPin] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [nextPassword, setNextPassword] = useState('');
   const [eraseText, setEraseText] = useState('');
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
   const streak = onTargetStreak(health.data.logs, today, (iso) => targetForDay(health.data, iso));
@@ -115,28 +115,28 @@ export function MoreView() {
     setMessage(`${food.name} updated.`);
   }
 
-  async function onPin(event: FormEvent) {
+  async function onPassword(event: FormEvent) {
     event.preventDefault();
-    if (!isPin(currentPin) || !isPin(nextPin)) {
-      setError('Both PINs need 4 digits.');
+    if (!isPassword(nextPassword)) {
+      setError('Use a new password of at least 6 characters.');
       return;
     }
-    const hashed = await hashPin(currentPin);
-    if (hashed !== health.data.pinHash) {
-      setError('The current PIN doesn’t match.');
+    const ok = await health.changePassword(currentPassword, nextPassword);
+    if (!ok) {
+      setError('The current password doesn’t match.');
       return;
     }
-    await health.changePin(nextPin);
-    setCurrentPin('');
-    setNextPin('');
+    setCurrentPassword('');
+    setNextPassword('');
     setError(null);
-    setMessage('PIN changed.');
+    setMessage('Password changed.');
   }
 
   return (
     <div className="page board">
       <header className="topbar">
         <h1 className="brand-sm">More</h1>
+        {health.profileName && <p className="dateline">{health.profileName}</p>}
       </header>
       {message && <p className="preview">{message}</p>}
       {error && <p className="error">{error}</p>}
@@ -274,13 +274,16 @@ export function MoreView() {
 
       <section className="card">
         <h2>Backup</h2>
-        <p className="help">The file holds this device’s diary. Keep it private. The PIN in the file is stored as a hash.</p>
+        <p className="help">The file holds this profile’s diary. Keep it private. Restoring it replaces the meals on this profile and keeps the password you sign in with.</p>
         <div className="composer-actions">
           <button
             type="button"
             className="primary"
             onClick={() => {
-              const blob = new Blob([JSON.stringify(health.data, null, 2)], { type: 'application/json' });
+              const blob = new Blob(
+                [JSON.stringify({ version: 2, profileName: health.profileName, diary: { ...health.data, pinHash: null } }, null, 2)],
+                { type: 'application/json' },
+              );
               const url = URL.createObjectURL(blob);
               const link = document.createElement('a');
               link.href = url;
@@ -309,7 +312,7 @@ export function MoreView() {
                   }
                   health.importData(next);
                   setError(null);
-                  setMessage('Backup restored. The PIN in that file opens Healthify next time.');
+                  setMessage('Backup restored on this profile.');
                 } catch {
                   setError('That file could not be read.');
                   setMessage(null);
@@ -330,30 +333,49 @@ export function MoreView() {
         <p className="help">After a new version is published, close Healthify and open it again. Meals stay on this device. The website code is public; the diary is not.</p>
       </section>
 
-      <form className="card" onSubmit={(event) => void onPin(event)}>
-        <h2>Change PIN</h2>
-        <label className="field-label" htmlFor="current-pin">
-          Current PIN
+      <form className="card" onSubmit={(event) => void onPassword(event)}>
+        <h2>Password</h2>
+        <label className="field-label" htmlFor="current-password">
+          Current password
         </label>
-        <input id="current-pin" className="pin-input" inputMode="numeric" maxLength={4} value={currentPin} onChange={(event) => setCurrentPin(event.target.value.replace(/\D/g, '').slice(0, 4))} />
-        <label className="field-label" htmlFor="next-pin">
-          New PIN
+        <input
+          id="current-password"
+          type="password"
+          autoComplete="current-password"
+          value={currentPassword}
+          onChange={(event) => setCurrentPassword(event.target.value)}
+        />
+        <label className="field-label" htmlFor="next-password">
+          New password
         </label>
-        <input id="next-pin" className="pin-input" inputMode="numeric" maxLength={4} value={nextPin} onChange={(event) => setNextPin(event.target.value.replace(/\D/g, '').slice(0, 4))} />
+        <input
+          id="next-password"
+          type="password"
+          autoComplete="new-password"
+          value={nextPassword}
+          onChange={(event) => setNextPassword(event.target.value)}
+        />
         <button className="primary" type="submit">
-          Change PIN
+          Change password
         </button>
       </form>
 
       <section className="card">
-        <h2>This device</h2>
-        <button type="button" className="ghost" onClick={health.lock}>
-          Lock now
+        <h2>{health.profileName ?? 'This profile'}</h2>
+        <button type="button" className="ghost" onClick={health.signOut}>
+          Sign out
         </button>
-        <p className="help">Type ERASE to delete the diary, PIN, and targets on this device.</p>
-        <input value={eraseText} aria-label="Type ERASE to confirm" onChange={(event) => setEraseText(event.target.value)} />
-        <button type="button" className="danger" disabled={eraseText !== 'ERASE'} onClick={() => health.erase()}>
-          Erase diary
+        <p className="help">Type {health.profileName} to delete this profile’s diary on this device. Other profiles stay.</p>
+        <input value={eraseText} aria-label="Type the profile name to confirm" onChange={(event) => setEraseText(event.target.value)} />
+        <button
+          type="button"
+          className="danger"
+          disabled={!health.profileName || eraseText.trim().toLowerCase() !== health.profileName.toLowerCase()}
+          onClick={() => {
+            if (health.profileId) health.removeProfile(health.profileId);
+          }}
+        >
+          Delete profile
         </button>
       </section>
       <p className="footer-note">Calories are estimates, not medical advice. {BUILT_IN_FOODS.length} foods are built in.</p>

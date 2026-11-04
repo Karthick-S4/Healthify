@@ -43,8 +43,7 @@ function Shell() {
       .catch(() => undefined);
   }, []);
 
-  if (!health.data.pinHash) return <LockView mode="setup" />;
-  if (!health.unlocked) return <LockView mode="unlock" />;
+  if (!health.signedIn) return <LockView />;
 
   return (
     <div className="shell">

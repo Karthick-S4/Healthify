@@ -1,23 +1,30 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
+import { hashPassword, newSalt } from './lib/password';
 import { hashPin, isPin } from './lib/pin';
-import { freshData, loadData, saveData, UNLOCK_KEY } from './lib/storage';
-import type { AppData, CustomRange, Food, FoodTweak, LogEntry } from './types';
+import { freshData, loadBook, saveBook, SESSION_KEY, UNLOCK_KEY } from './lib/storage';
+import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Undo = { ids: string[]; message: string };
+type ListedProfile = { id: string; name: string; legacy: boolean; needsPin: boolean };
+type ClaimResult = 'ok' | 'taken' | 'pin' | 'missing';
 
 type HealthApi = {
   data: AppData;
   foods: Food[];
-  unlocked: boolean;
+  signedIn: boolean;
+  profileName: string | null;
+  profileId: string | null;
+  profiles: ListedProfile[];
   undo: Undo | null;
-  unlock: (pin: string) => Promise<boolean>;
-  setup: (pin: string, dailyTarget: number) => Promise<void>;
-  lock: () => void;
-  changePin: (pin: string) => Promise<void>;
-  erase: () => void;
+  signIn: (id: string, password: string) => Promise<boolean>;
+  createProfile: (name: string, password: string, dailyTarget: number) => Promise<ClaimResult>;
+  claimProfile: (id: string, name: string, password: string, pin: string) => Promise<ClaimResult>;
+  signOut: () => void;
+  changePassword: (current: string, next: string) => Promise<boolean>;
+  removeProfile: (id: string) => void;
   dismissHint: () => void;
   setDailyTarget: (value: number) => void;
   setWeekBudget: (value: number | null) => void;
@@ -37,29 +44,36 @@ type HealthApi = {
 
 const HealthContext = createContext<HealthApi | null>(null);
 
-function rememberUnlock(on: boolean) {
+function readSession(): string | null {
   try {
-    if (on) sessionStorage.setItem(UNLOCK_KEY, '1');
-    else sessionStorage.removeItem(UNLOCK_KEY);
+    return sessionStorage.getItem(SESSION_KEY);
   } catch {
-    // Session unlock is a convenience. The PIN still protects the next visit.
+    return null;
+  }
+}
+
+function rememberProfile(id: string | null) {
+  try {
+    sessionStorage.removeItem(UNLOCK_KEY);
+    if (id) sessionStorage.setItem(SESSION_KEY, id);
+    else sessionStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Signing in still works until this tab closes.
   }
 }
 
 export function HealthProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<AppData>(() => loadData());
-  const [unlocked, setUnlocked] = useState(() => {
-    try {
-      return sessionStorage.getItem(UNLOCK_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
+  const [book, setBook] = useState<ProfileBook>(() => loadBook());
+  const [activeId, setActiveId] = useState<string | null>(() => readSession());
   const [undo, setUndo] = useState<Undo | null>(null);
 
+  const [blank] = useState<AppData>(() => freshData());
+  const active = book.profiles.find((profile) => profile.id === activeId && profile.passwordHash) ?? null;
+  const data = active?.data ?? blank;
+
   useEffect(() => {
-    saveData(data);
-  }, [data]);
+    saveBook(book);
+  }, [book]);
 
   useEffect(() => {
     if (!undo) return;
@@ -69,80 +83,142 @@ export function HealthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const today = todayISO();
-    setData((current) => {
-      if (!current.pinHash || current.dayTargets[today] != null) return current;
-      return { ...current, dayTargets: { ...current.dayTargets, [today]: current.profile.dailyTarget } };
+    setBook((bookNow) => {
+      const profile = bookNow.profiles.find((item) => item.id === activeId && item.passwordHash);
+      if (!profile || profile.data.dayTargets[today] != null) return bookNow;
+      return {
+        ...bookNow,
+        profiles: bookNow.profiles.map((item) =>
+          item.id === profile.id
+            ? {
+                ...item,
+                data: { ...item.data, dayTargets: { ...item.data.dayTargets, [today]: item.data.profile.dailyTarget } },
+              }
+            : item,
+        ),
+      };
+    });
+  }, [activeId]);
+
+  const foods = useMemo(() => allFoods(data), [data]);
+
+  const updateData = useCallback((recipe: (current: AppData) => AppData) => {
+    setBook((bookNow) => ({
+      ...bookNow,
+      profiles: bookNow.profiles.map((profile) =>
+        profile.id === activeId && profile.passwordHash ? { ...profile, data: recipe(profile.data) } : profile,
+      ),
+    }));
+  }, [activeId]);
+
+  const signIn = useCallback(async (id: string, password: string) => {
+    const profile = book.profiles.find((item) => item.id === id && item.passwordHash);
+    if (!profile) return false;
+    const hashed = await hashPassword(password, profile.salt);
+    if (hashed !== profile.passwordHash) return false;
+    setActiveId(id);
+    rememberProfile(id);
+    return true;
+  }, [book.profiles]);
+
+  const createProfile = useCallback(async (name: string, password: string, dailyTarget: number) => {
+    const clean = name.trim();
+    if (book.profiles.some((item) => item.name.toLowerCase() === clean.toLowerCase())) return 'taken' as const;
+    const salt = newSalt();
+    const passwordHash = await hashPassword(password, salt);
+    const id = crypto.randomUUID();
+    const today = todayISO();
+    const next = freshData();
+    next.profile = { ...next.profile, dailyTarget };
+    next.dayTargets = { [today]: dailyTarget };
+    setBook((bookNow) => ({
+      ...bookNow,
+      profiles: [...bookNow.profiles, { id, name: clean, salt, passwordHash, legacyPinHash: null, data: next }],
+    }));
+    setActiveId(id);
+    rememberProfile(id);
+    return 'ok' as const;
+  }, [book.profiles]);
+
+  const claimProfile = useCallback(async (id: string, name: string, password: string, pin: string) => {
+    const clean = name.trim();
+    const profile = book.profiles.find((item) => item.id === id);
+    if (!profile) return 'missing' as const;
+    if (book.profiles.some((item) => item.id !== id && item.name.toLowerCase() === clean.toLowerCase())) return 'taken' as const;
+    if (profile.legacyPinHash) {
+      if (!isPin(pin)) return 'pin' as const;
+      const hashed = await hashPin(pin);
+      if (hashed !== profile.legacyPinHash) return 'pin' as const;
+    }
+    const salt = newSalt();
+    const passwordHash = await hashPassword(password, salt);
+    setBook((bookNow) => ({
+      ...bookNow,
+      profiles: bookNow.profiles.map((item) =>
+        item.id === id
+          ? { ...item, name: clean, salt, passwordHash, legacyPinHash: null, data: { ...item.data, pinHash: null } }
+          : item,
+      ),
+    }));
+    setActiveId(id);
+    rememberProfile(id);
+    return 'ok' as const;
+  }, [book.profiles]);
+
+  const signOut = useCallback(() => {
+    setUndo(null);
+    setActiveId(null);
+    rememberProfile(null);
+  }, []);
+
+  const changePassword = useCallback(async (current: string, next: string) => {
+    const profile = book.profiles.find((item) => item.id === activeId && item.passwordHash);
+    if (!profile) return false;
+    const hashed = await hashPassword(current, profile.salt);
+    if (hashed !== profile.passwordHash) return false;
+    const salt = newSalt();
+    const passwordHash = await hashPassword(next, salt);
+    setBook((bookNow) => ({
+      ...bookNow,
+      profiles: bookNow.profiles.map((item) => (item.id === activeId ? { ...item, salt, passwordHash } : item)),
+    }));
+    return true;
+  }, [activeId, book.profiles]);
+
+  const removeProfile = useCallback((id: string) => {
+    setBook((bookNow) => ({ ...bookNow, profiles: bookNow.profiles.filter((item) => item.id !== id) }));
+    setUndo(null);
+    setActiveId((current) => {
+      if (current !== id) return current;
+      rememberProfile(null);
+      return null;
     });
   }, []);
 
-  const foods = useMemo(() => allFoods(data), [data.customFoods, data.tweaks]);
-
-  const unlock = useCallback(
-    async (pin: string) => {
-      if (!isPin(pin) || !data.pinHash) return false;
-      const hashed = await hashPin(pin);
-      if (hashed !== data.pinHash) return false;
-      rememberUnlock(true);
-      setUnlocked(true);
-      return true;
-    },
-    [data.pinHash],
-  );
-
-  const setup = useCallback(async (pin: string, dailyTarget: number) => {
-    const pinHash = await hashPin(pin);
-    const today = todayISO();
-    setData((current) => ({
-      ...current,
-      pinHash,
-      profile: { ...current.profile, dailyTarget },
-      dayTargets: { ...current.dayTargets, [today]: dailyTarget },
-    }));
-    rememberUnlock(true);
-    setUnlocked(true);
-  }, []);
-
-  const lock = useCallback(() => {
-    rememberUnlock(false);
-    setUnlocked(false);
-  }, []);
-
-  const changePin = useCallback(async (pin: string) => {
-    const pinHash = await hashPin(pin);
-    setData((current) => ({ ...current, pinHash }));
-  }, []);
-
-  const erase = useCallback(() => {
-    setData(freshData());
-    setUndo(null);
-    rememberUnlock(false);
-    setUnlocked(false);
-  }, []);
-
   const dismissHint = useCallback(() => {
-    setData((current) => ({ ...current, hintDismissed: true }));
-  }, []);
+    updateData((current) => ({ ...current, hintDismissed: true }));
+  }, [updateData]);
 
   const setDailyTarget = useCallback((value: number) => {
     const today = todayISO();
-    setData((current) => ({
+    updateData((current) => ({
       ...current,
       profile: { ...current.profile, dailyTarget: value },
       dayTargets: { ...current.dayTargets, [today]: value },
     }));
-  }, []);
+  }, [updateData]);
 
   const setWeekBudget = useCallback((value: number | null) => {
-    setData((current) => ({ ...current, profile: { ...current.profile, weekBudget: value } }));
-  }, []);
+    updateData((current) => ({ ...current, profile: { ...current.profile, weekBudget: value } }));
+  }, [updateData]);
 
   const setMonthBudget = useCallback((value: number | null) => {
-    setData((current) => ({ ...current, profile: { ...current.profile, monthBudget: value } }));
-  }, []);
+    updateData((current) => ({ ...current, profile: { ...current.profile, monthBudget: value } }));
+  }, [updateData]);
 
   const setCustom = useCallback((value: CustomRange | null) => {
-    setData((current) => ({ ...current, profile: { ...current.profile, custom: value } }));
-  }, []);
+    updateData((current) => ({ ...current, profile: { ...current.profile, custom: value } }));
+  }, [updateData]);
 
   const addLogs = useCallback((entries: NewLog[]) => {
     const created = entries.map((entry) => ({
@@ -150,7 +226,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     }));
-    setData((current) => {
+    updateData((current) => {
       const dayTargets = { ...current.dayTargets };
       for (const entry of created) {
         if (dayTargets[entry.date] == null) dayTargets[entry.date] = current.profile.dailyTarget;
@@ -158,74 +234,87 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       return { ...current, dayTargets, logs: [...current.logs, ...created] };
     });
     return created.map((entry) => entry.id);
-  }, []);
+  }, [updateData]);
 
   const updateLog = useCallback((id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside'>>) => {
-    setData((current) => ({
+    updateData((current) => ({
       ...current,
       logs: current.logs.map((log) => (log.id === id ? { ...log, ...patch } : log)),
     }));
-  }, []);
+  }, [updateData]);
 
   const removeLogs = useCallback((ids: string[]) => {
-    setData((current) => ({ ...current, logs: current.logs.filter((log) => !ids.includes(log.id)) }));
-  }, []);
+    updateData((current) => ({ ...current, logs: current.logs.filter((log) => !ids.includes(log.id)) }));
+  }, [updateData]);
 
   const undoLast = useCallback(() => {
     setUndo((current) => {
       if (current) {
         const ids = current.ids;
-        setData((dataNow) => ({ ...dataNow, logs: dataNow.logs.filter((log) => !ids.includes(log.id)) }));
+        updateData((dataNow) => ({ ...dataNow, logs: dataNow.logs.filter((log) => !ids.includes(log.id)) }));
       }
       return null;
     });
-  }, []);
+  }, [updateData]);
 
   const addCustomFood = useCallback((food: Food) => {
-    setData((current) => ({
+    updateData((current) => ({
       ...current,
       customFoods: [food, ...current.customFoods.filter((item) => item.id !== food.id)],
     }));
-  }, []);
+  }, [updateData]);
 
   const updateCustomFood = useCallback((id: string, patch: Pick<Food, 'kcalPer100g' | 'pieceGrams'>) => {
-    setData((current) => ({
+    updateData((current) => ({
       ...current,
       customFoods: current.customFoods.map((food) => (food.id === id ? { ...food, ...patch } : food)),
     }));
-  }, []);
+  }, [updateData]);
 
   const deleteCustomFood = useCallback((id: string) => {
-    setData((current) => ({ ...current, customFoods: current.customFoods.filter((food) => food.id !== id) }));
-  }, []);
+    updateData((current) => ({ ...current, customFoods: current.customFoods.filter((food) => food.id !== id) }));
+  }, [updateData]);
 
   const tweakFood = useCallback((id: string, tweak: FoodTweak | null) => {
-    setData((current) => {
+    updateData((current) => {
       const tweaks = { ...current.tweaks };
       if (tweak) tweaks[id] = tweak;
       else delete tweaks[id];
       return { ...current, tweaks };
     });
-  }, []);
+  }, [updateData]);
 
   const importData = useCallback((next: AppData) => {
-    setData(next);
+    updateData(() => ({ ...next, pinHash: null }));
     setUndo(null);
-    rememberUnlock(true);
-    setUnlocked(true);
-  }, []);
+  }, [updateData]);
+
+  const profiles = useMemo<ListedProfile[]>(
+    () =>
+      book.profiles.map((profile) => ({
+        id: profile.id,
+        name: profile.name,
+        legacy: !profile.passwordHash,
+        needsPin: Boolean(profile.legacyPinHash),
+      })),
+    [book.profiles],
+  );
 
   const api = useMemo<HealthApi>(
     () => ({
       data,
       foods,
-      unlocked,
+      signedIn: active != null,
+      profileName: active?.name ?? null,
+      profileId: active?.id ?? null,
+      profiles,
       undo,
-      unlock,
-      setup,
-      lock,
-      changePin,
-      erase,
+      signIn,
+      createProfile,
+      claimProfile,
+      signOut,
+      changePassword,
+      removeProfile,
       dismissHint,
       setDailyTarget,
       setWeekBudget,
@@ -245,13 +334,15 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     [
       data,
       foods,
-      unlocked,
+      active,
+      profiles,
       undo,
-      unlock,
-      setup,
-      lock,
-      changePin,
-      erase,
+      signIn,
+      createProfile,
+      claimProfile,
+      signOut,
+      changePassword,
+      removeProfile,
       dismissHint,
       setDailyTarget,
       setWeekBudget,

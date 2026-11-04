@@ -1,10 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { MealEditor } from '../components/MealEditor';
 import { Ring } from '../components/Ring';
 import { buildReports, targetForDay, tightestRoom, type RoomReport } from '../lib/budget';
 import { eachDate, formatLong, formatShort, formatWeekday, todayISO, weekRange } from '../lib/dates';
-import { formatKcal } from '../lib/format';
-import { kcalFor } from '../lib/foods';
+import { formatCount, formatKcal } from '../lib/format';
+import { closeFoods, correctQuery, kcalFor, suggestedGrams } from '../lib/foods';
+import { lookupCalories, type FoodLookup } from '../lib/lookupFood';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
 import { homeStreak, onTargetStreak, type OnTargetStreak } from '../lib/streaks';
 import { suggestMeals } from '../lib/suggestions';
@@ -57,6 +58,10 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   const [picked, setPicked] = useState(today);
   const [gramsDraft, setGramsDraft] = useState('');
   const [kcalDraft, setKcalDraft] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
+  const [kcalEdited, setKcalEdited] = useState(false);
+  const [lookup, setLookup] = useState<FoodLookup | null>(null);
+  const [looking, setLooking] = useState(false);
 
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
   const tight = useMemo(() => tightestRoom(health.data, today), [health.data, today]);
@@ -91,6 +96,33 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     });
     return ideas[0] ?? null;
   }, [tight, eaten, target, health.foods, health.data.logs, today, light]);
+
+  const unknown = queue[0]?.kind === 'unknown' ? queue[0] : null;
+  const unknownKey = unknown ? `${unknown.name}|${unknown.count}|${unknown.grams ?? ''}|${queue.length}` : '';
+
+  useEffect(() => {
+    if (!unknown) {
+      setLooking(false);
+      setLookup(null);
+      return;
+    }
+    const controller = new AbortController();
+    setLooking(true);
+    setLookup(null);
+    setKcalEdited(false);
+    setNameDraft(displayName(unknown.name));
+    void lookupCalories(unknown.name, health.foods, controller.signal).then((hit) => {
+      if (controller.signal.aborted) return;
+      setLooking(false);
+      if (!hit) return;
+      const grams = unknown.grams ?? suggestedGrams(unknown.name, health.foods) ?? 100;
+      setLookup(hit);
+      setNameDraft(displayName(hit.name));
+      setGramsDraft(String(Math.round(grams)));
+      setKcalDraft(String(Math.max(0, Math.round((hit.kcalPer100g * grams) / 100))));
+    });
+    return () => controller.abort();
+  }, [unknownKey, health.foods]);
 
   function addHits(hits: FoodHit[], outside: boolean) {
     if (hits.length === 0) return;
@@ -128,6 +160,8 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     });
     addHits(hits, outside);
     setQueue(pending);
+    setLooking(pending[0]?.kind === 'unknown');
+    setLookup(null);
     setGramsDraft(pending[0]?.kind === 'unknown' && pending[0].grams ? String(pending[0].grams) : '');
     setKcalDraft('');
     setError(invalid && invalid.kind === 'invalid' ? invalid.message : null);
@@ -154,39 +188,65 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         return;
       }
       const count = current.count > 0 ? current.count : 1;
-      const name = displayName(current.name);
+      const name = displayName(nameDraft.trim() || current.name);
+      const corrected = correctQuery(current.name, health.foods);
       const food: Food = {
         id: crypto.randomUUID(),
         name,
         group: 'Yours',
-        aliases: [current.name.toLowerCase()],
+        aliases: [...new Set([current.name.toLowerCase(), corrected, name.toLowerCase()].filter(Boolean))],
         kcalPer100g: grams === 0 ? 0 : (kcal / grams) * 100,
         pieceGrams: grams / count,
         pieceLabel: 'serving',
         source: 'custom',
       };
       health.addCustomFood(food);
-      const title = count === 1 ? `${name}, ${Math.round(grams)} g` : `${count} ${name}`;
+      const title = `${name}, ${Math.round(grams)} g`;
       const ids = health.addLogs([{ date: today, title, grams, kcal, outside: current.outside, foodId: food.id }]);
       health.setUndo({ ids, message: `Added ${title} · ${formatKcal(kcal)} kcal` });
     }
     const rest = queue.slice(1);
     setQueue(rest);
+    setLooking(rest[0]?.kind === 'unknown');
     setGramsDraft(rest[0]?.kind === 'unknown' && rest[0].grams ? String(rest[0].grams) : '');
     setKcalDraft('');
+    setNameDraft('');
+    setLookup(null);
+    setError(null);
+    if (rest.length === 0) setAteOut(false);
+  }
+
+  function chooseSaved(food: Food) {
+    const current = queue[0];
+    if (!current || current.kind !== 'unknown') return;
+    const count = current.count > 0 ? current.count : 1;
+    const grams = current.grams ?? food.pieceGrams * count;
+    const title = current.grams != null ? `${food.name}, ${Math.round(grams)} g` : `${formatCount(count)} ${food.name}`;
+    addHits([{ kind: 'food', food, grams, kcal: kcalFor(food, grams), title }], current.outside);
+    const rest = queue.slice(1);
+    setQueue(rest);
+    setLooking(rest[0]?.kind === 'unknown');
+    setGramsDraft(rest[0]?.kind === 'unknown' && rest[0].grams ? String(rest[0].grams) : '');
+    setKcalDraft('');
+    setNameDraft('');
+    setLookup(null);
     setError(null);
     if (rest.length === 0) setAteOut(false);
   }
 
   const pending = queue[0];
   const pendingKcal = pending?.kind === 'need-grams' && Number(gramsDraft) > 0 ? kcalFor(pending.food, Number(gramsDraft)) : null;
+  const alternates = pending?.kind === 'unknown' ? closeFoods(pending.name, health.foods) : [];
   const homeToday = todayLogs.some((log) => !log.outside);
 
   return (
     <div className="page today-page">
       <div className="today-status">
       <header className="topbar">
-        <h1 className="brand-sm">Healthify</h1>
+        <div>
+          <h1 className="brand-sm">Healthify</h1>
+          {health.profileName && <p className="who">{health.profileName}</p>}
+        </div>
         <p className="dateline">{formatLong(today)}</p>
       </header>
 
@@ -224,7 +284,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         <input
           id="food"
           value={draft}
-          placeholder="3 idli, apple 150g"
+          placeholder="3 idli, biryani, apple 150g"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
@@ -291,17 +351,71 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
             </>
           ) : (
             <>
-              <h2>I don’t know “{pending.name.trim()}” yet</h2>
-              {queue.length > 1 && <p className="help">{queue.length} foods to name.</p>}
-              <label className="field-label" htmlFor="new-kcal">
-                Calories in what you ate
-              </label>
-              <input id="new-kcal" inputMode="numeric" value={kcalDraft} onChange={(event) => setKcalDraft(event.target.value.replace(/[^\d]/g, ''))} />
-              <label className="field-label" htmlFor="new-grams">
-                About how many grams
-              </label>
-              <input id="new-grams" inputMode="numeric" value={gramsDraft} onChange={(event) => setGramsDraft(event.target.value.replace(/[^\d.]/g, ''))} />
-              <p className="help">Healthify remembers this for next time.</p>
+              <h2>{looking ? `Looking up “${pending.name.trim()}”` : nameDraft || displayName(pending.name)}</h2>
+              {queue.length > 1 && <p className="help">{queue.length} foods in this note.</p>}
+              {looking && <p className="help">Checking a food database for the calories.</p>}
+              {!looking && lookup && (
+                <p className="help">
+                  About {formatKcal(lookup.kcalPer100g)} kcal per 100 g, from {lookup.detail}. Change the grams or calories if this portion is different.
+                </p>
+              )}
+              {!looking && !lookup && (
+                <p className="help">No listing turned up. Type the calories and grams. Healthify remembers them, and you can change the meal later.</p>
+              )}
+              {!looking && (
+                <>
+                  <label className="field-label" htmlFor="new-name">
+                    Name
+                  </label>
+                  <input id="new-name" value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} />
+                  <label className="field-label" htmlFor="new-grams">
+                    Grams
+                  </label>
+                  <input
+                    id="new-grams"
+                    inputMode="decimal"
+                    value={gramsDraft}
+                    onChange={(event) => {
+                      const next = event.target.value.replace(/[^\d.]/g, '');
+                      setGramsDraft(next);
+                      if (!kcalEdited && lookup) {
+                        const grams = Number(next);
+                        if (Number.isFinite(grams) && grams > 0) {
+                          setKcalDraft(String(Math.max(0, Math.round((lookup.kcalPer100g * grams) / 100))));
+                        }
+                      }
+                    }}
+                  />
+                  <label className="field-label" htmlFor="new-kcal">
+                    Calories
+                  </label>
+                  <input
+                    id="new-kcal"
+                    inputMode="numeric"
+                    value={kcalDraft}
+                    onChange={(event) => {
+                      setKcalEdited(true);
+                      setKcalDraft(event.target.value.replace(/[^\d]/g, ''));
+                    }}
+                  />
+                </>
+              )}
+              {alternates.length > 0 && (
+                <>
+                  <p className="field-label">Or a saved plate</p>
+                  <div className="alt-row">
+                  {alternates.map((food) => {
+                    const count = pending.count > 0 ? pending.count : 1;
+                    const grams = pending.grams ?? food.pieceGrams * count;
+                    return (
+                      <button key={food.id} type="button" className="pill" onClick={() => chooseSaved(food)}>
+                        {food.name} · {formatKcal(kcalFor(food, grams))}
+                      </button>
+                    );
+                  })}
+                  </div>
+                </>
+              )}
             </>
           )}
           <div className="composer-actions">
@@ -315,8 +429,8 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
             >
               Skip
             </button>
-            <button className="primary" type="submit">
-              Save
+            <button className="primary" type="submit" disabled={pending.kind === 'unknown' && looking}>
+              {pending.kind === 'need-grams' ? 'Save' : 'Add this'}
             </button>
           </div>
         </form>

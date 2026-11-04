@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_FOODS } from '../data/foods';
 import { parseFoodList } from './parseFood';
-import { matchFood } from './foods';
+import { correctQuery, matchFood, suggestedGrams } from './foods';
 
 const foods = BUILT_IN_FOODS;
 
@@ -61,5 +61,13 @@ describe('parseFoodList', () => {
     expect(matchFood('appl', foods)?.id).toBe('apple');
     expect(matchFood('idle', foods)).toBeNull();
     expect(parseFoodList('dragon fruit', foods).items[0]?.kind).toBe('unknown');
+  });
+
+  it('corrects a biryani typo without guessing which biryani', () => {
+    expect(matchFood('biriryani', foods)).toBeNull();
+    expect(matchFood('chiken biryani', foods)?.id).toBe('chicken-biryani');
+    expect(parseFoodList('1 plate biriryani', foods).items[0]).toMatchObject({ kind: 'unknown', grams: 300 });
+    expect(correctQuery('biriryani', foods)).toBe('biryani');
+    expect(suggestedGrams('biriryani', foods)).toBe(300);
   });
 });

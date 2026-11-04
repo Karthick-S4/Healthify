@@ -1,6 +1,8 @@
-import type { AppData, Food, FoodTweak, LogEntry, Profile } from '../types';
+import type { AppData, Food, FoodTweak, LogEntry, Profile, ProfileBook, ProfileRecord } from '../types';
 
 export const STORAGE_KEY = 'healthify.v1';
+export const BOOK_KEY = 'healthify.profiles.v1';
+export const SESSION_KEY = 'healthify.profile';
 export const UNLOCK_KEY = 'healthify.unlocked';
 export const DAILY_MIN = 1000;
 export const DAILY_MAX = 5000;
@@ -113,9 +115,78 @@ export function normalizeData(value: unknown): AppData {
 
 export function fromBackup(value: unknown): AppData | null {
   if (!value || typeof value !== 'object') return null;
-  const data = value as Partial<AppData>;
-  if (data.version !== 1 || typeof data.pinHash !== 'string' || !Array.isArray(data.logs)) return null;
-  return normalizeData(data);
+  const body = value as { version?: unknown; diary?: unknown; pinHash?: unknown; logs?: unknown };
+  if (body.version === 2 && body.diary && typeof body.diary === 'object') {
+    const diary = body.diary as Partial<AppData>;
+    if (!Array.isArray(diary.logs)) return null;
+    return normalizeData(diary);
+  }
+  if (body.version === 1 && typeof body.pinHash === 'string' && Array.isArray(body.logs)) return normalizeData(body);
+  return null;
+}
+
+export function emptyBook(): ProfileBook {
+  return { version: 1, profiles: [] };
+}
+
+function asProfileRecord(value: unknown): ProfileRecord | null {
+  if (!value || typeof value !== 'object') return null;
+  const record = value as Partial<ProfileRecord>;
+  if (typeof record.id !== 'string' || typeof record.name !== 'string') return null;
+  if (typeof record.salt !== 'string' || typeof record.passwordHash !== 'string') return null;
+  const name = record.name.trim().slice(0, 24);
+  if (!name) return null;
+  return {
+    id: record.id,
+    name,
+    salt: record.salt,
+    passwordHash: record.passwordHash,
+    legacyPinHash: typeof record.legacyPinHash === 'string' ? record.legacyPinHash : null,
+    data: normalizeData(record.data),
+  };
+}
+
+export function normalizeBook(value: unknown): ProfileBook {
+  if (!value || typeof value !== 'object') return emptyBook();
+  const book = value as Partial<ProfileBook>;
+  const profiles = Array.isArray(book.profiles)
+    ? book.profiles.map(asProfileRecord).filter((item): item is ProfileRecord => item !== null)
+    : [];
+  return { version: 1, profiles };
+}
+
+function legacyDiary(): ProfileRecord | null {
+  const legacy = loadData();
+  const used = Boolean(legacy.pinHash || legacy.logs.length > 0 || legacy.customFoods.length > 0 || Object.keys(legacy.dayTargets).length > 0);
+  if (!used) return null;
+  return {
+    id: 'legacy',
+    name: 'My diary',
+    salt: '',
+    passwordHash: '',
+    legacyPinHash: legacy.pinHash,
+    data: legacy,
+  };
+}
+
+export function loadBook(): ProfileBook {
+  try {
+    const raw = localStorage.getItem(BOOK_KEY);
+    if (raw) return normalizeBook(JSON.parse(raw));
+  } catch {
+    // A broken profile file falls through to the older single diary, if it is still there.
+  }
+  const legacy = legacyDiary();
+  return legacy ? { version: 1, profiles: [legacy] } : emptyBook();
+}
+
+export function saveBook(book: ProfileBook): void {
+  try {
+    localStorage.setItem(BOOK_KEY, JSON.stringify(book));
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // The open profile stays in memory for this visit if storage is full.
+  }
 }
 
 export function loadData(): AppData {

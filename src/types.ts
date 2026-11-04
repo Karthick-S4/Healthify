@@ -54,4 +54,18 @@ export type AppData = {
   hintDismissed: boolean;
 };
 
+export type ProfileRecord = {
+  id: string;
+  name: string;
+  salt: string;
+  passwordHash: string;
+  legacyPinHash: string | null;
+  data: AppData;
+};
+
+export type ProfileBook = {
+  version: 1;
+  profiles: ProfileRecord[];
+};
+
 export type PeriodKind = 'day' | 'week' | 'month' | 'custom';

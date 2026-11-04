@@ -7,6 +7,7 @@ import { StarIcon, WeekStars, weekDone } from '../components/WeekStars';
 import { targetForDay } from '../lib/budget';
 import { addDays, formatLong, formatRange, formatShort, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
+import { measureRank } from '../lib/measures';
 import {
   activityDay,
   activityStreak,
@@ -132,7 +133,7 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
       const seen = latest.get(key);
       latest.set(key, { part: entry.part, cm: entry.cm, first: seen?.first ?? entry.cm, date: entry.date });
     }
-    return [...latest.values()].slice(0, 4);
+    return [...latest.values()].sort((a, b) => measureRank(a.part) - measureRank(b.part));
   }, [data.measures]);
 
   const targetOver = streaks.onTarget.today === 'over';

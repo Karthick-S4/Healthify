@@ -2,9 +2,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { TrendChart } from '../components/TrendChart';
 import { addDays, formatShort, todayISO } from '../lib/dates';
 import { useHealth } from '../state';
+import { MEASURE_PARTS, measureRank } from '../lib/measures';
 import type { MeasureEntry } from '../types';
-
-const COMMON_PARTS = ['Neck', 'Shoulder', 'Bust', 'Upper waist', 'Waist', 'Lower belly', 'Hips', 'Arms', 'Thigh', 'Calf'];
 
 function decimal(value: string): string {
   return value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
@@ -42,16 +41,12 @@ export function BodyView() {
       const key = entry.part.toLocaleLowerCase();
       groups.set(key, [...(groups.get(key) ?? []), entry]);
     }
-    const rank = (group: MeasureEntry[]) => {
-      const index = COMMON_PARTS.findIndex((name) => name.toLocaleLowerCase() === group[0].part.toLocaleLowerCase());
-      return index === -1 ? COMMON_PARTS.length : index;
-    };
-    return [...groups.values()].sort((a, b) => rank(a) - rank(b) || (a[a.length - 1].date < b[b.length - 1].date ? 1 : -1));
+    return [...groups.values()].sort((a, b) => measureRank(a[0].part) - measureRank(b[0].part) || (a[a.length - 1].date < b[b.length - 1].date ? 1 : -1));
   }, [health.data.measures]);
 
   const partNames = useMemo(() => {
     const names = new Map<string, string>();
-    for (const name of [...COMMON_PARTS, ...parts.map((group) => group[group.length - 1].part)]) {
+    for (const name of [...MEASURE_PARTS, ...parts.map((group) => group[group.length - 1].part)]) {
       if (!names.has(name.toLocaleLowerCase())) names.set(name.toLocaleLowerCase(), name);
     }
     return [...names.values()];

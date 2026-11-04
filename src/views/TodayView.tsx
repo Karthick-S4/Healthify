@@ -47,10 +47,29 @@ function displayName(name: string): string {
   return name.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
 }
 
+function portionAmount(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value) || value <= 0 || value > 3000) return Number.NaN;
+  return value;
+}
+
+function withPortion(hit: FoodHit, grams: number, unit: 'g' | 'ml'): FoodHit {
+  return {
+    ...hit,
+    grams,
+    kcal: kcalFor(hit.food, grams),
+    title: `${hit.food.name}, ${Math.round(grams)} ${unit}`,
+  };
+}
+
 export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   const health = useHealth();
   const today = todayISO();
   const [draft, setDraft] = useState('');
+  const [amount, setAmount] = useState('');
+  const [measure, setMeasure] = useState<'g' | 'ml'>('g');
   const [ateOut, setAteOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [queue, setQueue] = useState<Pending[]>([]);
@@ -77,12 +96,16 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
 
   const preview = useMemo(() => {
     if (!draft.trim() || queue.length > 0) return null;
+    const portion = portionAmount(amount);
+    if (Number.isNaN(portion)) return null;
     const parsed = parseFoodList(draft, health.foods);
     const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
     if (hits.length === 0 || hits.length !== parsed.items.length) return null;
-    const kcal = hits.reduce((sum, hit) => sum + hit.kcal, 0);
-    return `${hits.map((hit) => hit.title).join(' + ')} · ${formatKcal(kcal)} kcal`;
-  }, [draft, health.foods, queue.length]);
+    const shown = portion != null && hits.length === 1 ? [withPortion(hits[0], portion, measure)] : hits;
+    if (portion != null && hits.length !== 1) return null;
+    const kcal = shown.reduce((sum, hit) => sum + hit.kcal, 0);
+    return `${shown.map((hit) => hit.title).join(' + ')} · ${formatKcal(kcal)} kcal`;
+  }, [amount, draft, health.foods, measure, queue.length]);
 
   const light = tight.over || eaten > target;
   const idea = useMemo(() => {
@@ -146,14 +169,32 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   function onSubmit(event: FormEvent) {
     event.preventDefault();
     const parsed = parseFoodList(draft, health.foods);
+    const portion = portionAmount(amount);
+    if (Number.isNaN(portion)) {
+      setError(measure === 'ml' ? 'Enter millilitres between 1 and 3,000.' : 'Enter grams between 1 and 3,000.');
+      return;
+    }
+    if (portion != null && parsed.items.length !== 1) {
+      setError(parsed.items.length === 0 ? 'Type the food in the first box.' : 'Use the amount for one food, then add the next.');
+      return;
+    }
     if (parsed.items.length === 0) {
-      setError(parsed.outside ? 'Add the food as well.' : 'Type a food, such as 3 idli, rasam 200 ml, or apple 150 gm.');
+      setError(parsed.outside ? 'Add the food as well.' : 'Type a food, such as rasam or 3 idli.');
       return;
     }
     const outside = parsed.outside || ateOut;
-    const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
-    const invalid = parsed.items.find((item) => item.kind === 'invalid');
-    const pending = parsed.items.flatMap((item): Pending[] => {
+    const items =
+      portion != null
+        ? parsed.items.map((item) => {
+            if (item.kind === 'food') return withPortion(item, portion, measure);
+            if (item.kind === 'unknown') return { ...item, grams: portion, unit: measure };
+            if (item.kind === 'need-grams') return { ...item, unit: measure };
+            return item;
+          })
+        : parsed.items;
+    const hits = items.filter((item): item is FoodHit => item.kind === 'food');
+    const invalid = items.find((item) => item.kind === 'invalid');
+    const pending = items.flatMap((item): Pending[] => {
       if (item.kind === 'unknown') return [{ ...item, outside }];
       if (item.kind === 'need-grams') return [{ ...item, outside }];
       return [];
@@ -162,10 +203,11 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     setQueue(pending);
     setLooking(pending[0]?.kind === 'unknown');
     setLookup(null);
-    setGramsDraft(pending[0]?.kind === 'unknown' && pending[0].grams ? String(pending[0].grams) : '');
+    setGramsDraft(portion != null ? String(Math.round(portion)) : pending[0]?.kind === 'unknown' && pending[0].grams ? String(pending[0].grams) : '');
     setKcalDraft('');
     setError(invalid && invalid.kind === 'invalid' ? invalid.message : null);
     setDraft('');
+    setAmount('');
     if (pending.length === 0) setAteOut(false);
   }
 
@@ -282,21 +324,44 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       <div className="today-log">
       <form className="composer" onSubmit={onSubmit}>
         <label className="field-label" htmlFor="food">
-          Add food
+          Food
         </label>
         <input
           id="food"
           value={draft}
-          placeholder="3 idli, rasam 200 ml, apple 150 gm"
+          placeholder="rasam, 3 idli, apple"
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          enterKeyHint="done"
+          enterKeyHint="next"
           onChange={(event) => {
             setDraft(event.target.value);
             setError(null);
           }}
         />
+        <label className="field-label" htmlFor="amount">
+          Amount
+        </label>
+        <div className="amount-row">
+          <input
+            id="amount"
+            inputMode="decimal"
+            value={amount}
+            placeholder="200"
+            onChange={(event) => {
+              setAmount(event.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1'));
+              setError(null);
+            }}
+          />
+          <div className="unit-toggle" role="group" aria-label="Grams or millilitres">
+            <button type="button" className={measure === 'g' ? 'on' : undefined} aria-pressed={measure === 'g'} onClick={() => setMeasure('g')}>
+              gm
+            </button>
+            <button type="button" className={measure === 'ml' ? 'on' : undefined} aria-pressed={measure === 'ml'} onClick={() => setMeasure('ml')}>
+              ml
+            </button>
+          </div>
+        </div>
         {preview && <p className="preview">{preview}</p>}
         <div className="composer-actions">
           <button type="button" className={ateOut ? 'pill on' : 'pill'} aria-pressed={ateOut} onClick={() => setAteOut((value) => !value)}>
@@ -471,7 +536,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       <section className="meals">
         <h2>Today</h2>
         {todayLogs.length === 0 ? (
-          <p className="empty">Nothing logged yet. Try 3 idli, rasam 200 ml, or apple 150 gm.</p>
+          <p className="empty">Nothing logged yet. Type the food, then the grams or ml beside it.</p>
         ) : (
           <ul className="meal-list">
             {todayLogs.map((log) => (

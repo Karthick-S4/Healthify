@@ -223,6 +223,18 @@ input, .pin-input {
 .error { color: #8d2e2e; font-size: 0.92rem; }
 
 .composer-actions, .sheet-actions, .pager { display: flex; gap: 8px; }
+.amount-row { display: flex; gap: 8px; align-items: center; }
+.amount-row input { flex: 1; min-width: 0; }
+.unit-toggle { display: flex; gap: 8px; flex: none; }
+.unit-toggle button {
+  min-width: 64px;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  font-weight: 650;
+}
+.unit-toggle button.on { background: var(--ink); color: var(--card); border-color: var(--ink); }
 .primary, .ghost, .danger, .choice, .pill {
   min-height: 48px;
   border-radius: 999px;
@@ -432,8 +444,8 @@ button:focus-visible, input:focus-visible {
   .dock nav button:hover { color: var(--ink); }
   .meal:hover { background: rgba(36, 28, 22, 0.04); }
   .primary:hover { filter: brightness(1.06); }
-  .ghost:hover, .pill:hover, .choice:hover, .seg button:hover { background: rgba(36, 28, 22, 0.05); }
-  .pill.on:hover, .choice.on:hover, .seg button.on:hover { background: var(--ink); }
+  .ghost:hover, .pill:hover, .choice:hover, .seg button:hover, .unit-toggle button:hover { background: rgba(36, 28, 22, 0.05); }
+  .pill.on:hover, .choice.on:hover, .seg button.on:hover, .unit-toggle button.on:hover { background: var(--ink); }
 }
 
 @media (prefers-reduced-motion: reduce) {

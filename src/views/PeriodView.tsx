@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { IconBack } from '../components/Icons';
 import { MealEditor } from '../components/MealEditor';
-import { buildReports, targetForDay } from '../lib/budget';
+import { buildReports, pickRange, planOn, targetForDay } from '../lib/budget';
 import { addDays, addMonths, eachDate, formatLong, formatRange, parseISO, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { useHealth } from '../state';
@@ -29,9 +29,12 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
   const [anchor, setAnchor] = useState(today);
   const [picked, setPicked] = useState<string>(today);
   const [editing, setEditing] = useState<LogEntry | null>(null);
-  const reports = useMemo(() => buildReports(health.data, today, anchor), [health.data, today, anchor]);
+  const [rangeId, setRangeId] = useState<string | null>(null);
+  const activeRange = pickRange(health.data, today, rangeId);
+  const reports = useMemo(() => buildReports(health.data, today, anchor, activeRange?.id), [health.data, today, anchor, activeRange?.id]);
   const report = reports[kind];
-  const hasCustom = health.data.profile.custom != null;
+  const ranges = health.data.profile.ranges;
+  const hasCustom = ranges.length > 0;
 
   const byDay = useMemo(() => {
     const map = new Map<string, LogEntry[]>();
@@ -52,6 +55,18 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
   const isCurrent = report.start <= today && today <= report.end;
   const title =
     kind === 'month' ? parseISO(report.start).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : formatRange(report.start, report.end);
+
+  const budgetNote = (() => {
+    if (kind === 'custom' && activeRange) {
+      const parts = [activeRange.daily != null && `${formatKcal(activeRange.daily)} a day`, activeRange.week != null && `${formatKcal(activeRange.week)} a week`];
+      return `This range aims for ${parts.filter(Boolean).join(' and ')}.`;
+    }
+    const overlap = ranges.some((range) => range.start <= report.end && report.start <= range.end);
+    const plan = planOn(health.data, report.start <= today && today <= report.end ? today : report.end < today ? report.end : report.start);
+    const own = kind === 'week' ? plan.week : plan.month;
+    const base = own != null ? `Uses your ${kind} total.` : `Adds up each day’s target.`;
+    return overlap ? `${base} Days in a custom range use that range’s targets.` : base;
+  })();
 
   function shift(direction: -1 | 1) {
     if (kind === 'month') setAnchor(addMonths(anchor, direction));
@@ -74,15 +89,31 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
 
       {kind === 'custom' && !hasCustom ? (
         <section className="card">
-          <h2>Set a custom range</h2>
-          <p>Choose a start, an end, and a total calorie budget. Ideas will use what’s left in that range.</p>
+          <h2>No custom range yet</h2>
+          <p>Pick dates and give them their own daily or weekly target. On those days it replaces your regular targets.</p>
           <button type="button" className="primary" onClick={onOpenMore}>
-            Set the range
+            Add a range
           </button>
         </section>
       ) : (
         <div className="split">
           <section className="summary">
+            {kind === 'custom' && ranges.length > 1 && (
+              <div className="range-chips" role="tablist" aria-label="Custom ranges">
+                {ranges.map((range) => (
+                  <button
+                    key={range.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={range.id === activeRange?.id}
+                    className={range.id === activeRange?.id ? 'pill pick on' : 'pill pick'}
+                    onClick={() => setRangeId(range.id)}
+                  >
+                    {formatRange(range.start, range.end)}
+                  </button>
+                ))}
+              </div>
+            )}
             <p className="eyebrow">{report.over ? 'Over budget' : 'Within budget'}</p>
             <p className="summary-num">
               {formatKcal(report.eaten)}
@@ -90,10 +121,9 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
             </p>
             <p className="note">
               {report.over
-                ? `${formatKcal(Math.abs(report.remaining))} kcal over this ${kind}.`
-                : `${formatKcal(report.remaining)} kcal left.`}
-              {health.data.profile.weekBudget == null && kind === 'week' && ' Week budget follows the daily target.'}
-              {health.data.profile.monthBudget == null && kind === 'month' && ' Month budget follows the daily target.'}
+                ? `${formatKcal(Math.abs(report.remaining))} kcal over this ${kind === 'custom' ? 'range' : kind}.`
+                : `${formatKcal(report.remaining)} kcal left.`}{' '}
+              {budgetNote}
             </p>
           </section>
 

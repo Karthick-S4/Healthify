@@ -49,10 +49,19 @@ export type ActivityEntry = {
   createdAt: string;
 };
 
+export type TargetPlan = {
+  from: string;
+  daily: number;
+  week: number | null;
+  month: number | null;
+};
+
 export type CustomRange = {
+  id: string;
   start: string;
   end: string;
-  budget: number;
+  daily: number | null;
+  week: number | null;
 };
 
 export type Profile = {
@@ -60,7 +69,8 @@ export type Profile = {
   goalSet: boolean;
   weekBudget: number | null;
   monthBudget: number | null;
-  custom: CustomRange | null;
+  plans: TargetPlan[];
+  ranges: CustomRange[];
 };
 
 export type FoodTweak = {

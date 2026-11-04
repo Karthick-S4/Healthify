@@ -1,4 +1,5 @@
-import type { ActivityEntry, AppData, Food, FoodTweak, LogEntry, MeasureEntry, Profile, ProfileBook, ProfileRecord, WeightEntry } from '../types';
+import { eachDate, todayISO } from './dates';
+import type { ActivityEntry, AppData, CustomRange, Food, FoodTweak, LogEntry, MeasureEntry, Profile, ProfileBook, ProfileRecord, TargetPlan, WeightEntry } from '../types';
 
 export const STORAGE_KEY = 'healthify.v1';
 export const BOOK_KEY = 'healthify.shared.v1';
@@ -10,7 +11,7 @@ export function freshData(): AppData {
   return {
     version: 1,
     pinHash: null,
-    profile: { dailyTarget: 1800, goalSet: false, weekBudget: null, monthBudget: null, custom: null },
+    profile: { dailyTarget: 1800, goalSet: false, weekBudget: null, monthBudget: null, plans: [], ranges: [] },
     customFoods: [],
     tweaks: {},
     dayTargets: {},
@@ -102,26 +103,66 @@ function asIds(value: unknown): string[] {
   return [...new Set(value.filter((item): item is string => typeof item === 'string' && item.length > 0))];
 }
 
-function asProfile(value: unknown): Profile {
+export const FIRST_DAY = '0000-01-01';
+
+const optionalKcal = (value: unknown): number | null => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : null);
+
+function asPlan(value: unknown): TargetPlan | null {
+  if (!value || typeof value !== 'object') return null;
+  const plan = value as Partial<TargetPlan>;
+  if (typeof plan.from !== 'string' || !ISO_DATE.test(plan.from) || typeof plan.daily !== 'number') return null;
+  return { from: plan.from, daily: clampDaily(plan.daily), week: optionalKcal(plan.week), month: optionalKcal(plan.month) };
+}
+
+function asRange(value: unknown): CustomRange | null {
+  if (!value || typeof value !== 'object') return null;
+  const range = value as Partial<CustomRange>;
+  if (typeof range.id !== 'string' || typeof range.start !== 'string' || typeof range.end !== 'string') return null;
+  if (!ISO_DATE.test(range.start) || !ISO_DATE.test(range.end) || range.end < range.start) return null;
+  const daily = optionalKcal(range.daily);
+  const week = optionalKcal(range.week);
+  if (daily == null && week == null) return null;
+  return { id: range.id, start: range.start, end: range.end, daily: daily == null ? null : clampDaily(daily), week };
+}
+
+function plansFromHistory(dayTargets: Record<string, number>, daily: number, week: number | null, month: number | null): TargetPlan[] {
+  const days = Object.keys(dayTargets).sort();
+  if (days.length === 0) return [{ from: FIRST_DAY, daily, week, month }];
+  const plans: TargetPlan[] = [{ from: FIRST_DAY, daily: dayTargets[days[0]], week, month }];
+  for (const iso of days) {
+    if (dayTargets[iso] !== plans[plans.length - 1].daily) plans.push({ from: iso, daily: dayTargets[iso], week, month });
+  }
+  const today = todayISO();
+  const last = plans[plans.length - 1];
+  if (last.daily !== daily) {
+    if (last.from >= today) last.daily = daily;
+    else plans.push({ from: today, daily, week, month });
+  }
+  return plans;
+}
+
+function asProfile(value: unknown, dayTargets: Record<string, number>): Profile {
   const fallback = freshData().profile;
   if (!value || typeof value !== 'object') return fallback;
-  const profile = value as Partial<Profile>;
-  const custom = profile.custom;
-  const safeCustom =
-    custom &&
-    typeof custom === 'object' &&
-    typeof custom.start === 'string' &&
-    typeof custom.end === 'string' &&
-    typeof custom.budget === 'number' &&
-    custom.end >= custom.start
-      ? { start: custom.start, end: custom.end, budget: Math.round(custom.budget) }
-      : null;
+  const profile = value as Partial<Profile> & { custom?: { start?: unknown; end?: unknown; budget?: unknown } | null };
+  const dailyTarget = clampDaily(typeof profile.dailyTarget === 'number' ? profile.dailyTarget : fallback.dailyTarget);
+  const weekBudget = optionalKcal(profile.weekBudget);
+  const monthBudget = optionalKcal(profile.monthBudget);
+  const savedPlans = Array.isArray(profile.plans) ? profile.plans.map(asPlan).filter((plan): plan is TargetPlan => plan !== null) : [];
+  const plans = savedPlans.length > 0 ? [...savedPlans].sort((a, b) => (a.from < b.from ? -1 : 1)) : plansFromHistory(dayTargets, dailyTarget, weekBudget, monthBudget);
+  let ranges = Array.isArray(profile.ranges) ? profile.ranges.map(asRange).filter((range): range is CustomRange => range !== null) : [];
+  const legacy = profile.custom;
+  if (!Array.isArray(profile.ranges) && legacy && typeof legacy.start === 'string' && typeof legacy.end === 'string' && typeof legacy.budget === 'number') {
+    const days = eachDate(legacy.start, legacy.end).length;
+    if (days > 0) ranges = [{ id: 'range-legacy', start: legacy.start, end: legacy.end, daily: clampDaily(legacy.budget / days), week: null }];
+  }
   return {
-    dailyTarget: clampDaily(typeof profile.dailyTarget === 'number' ? profile.dailyTarget : fallback.dailyTarget),
+    dailyTarget,
     goalSet: profile.goalSet === false ? false : true,
-    weekBudget: typeof profile.weekBudget === 'number' ? Math.round(profile.weekBudget) : null,
-    monthBudget: typeof profile.monthBudget === 'number' ? Math.round(profile.monthBudget) : null,
-    custom: safeCustom,
+    weekBudget,
+    monthBudget,
+    plans,
+    ranges: ranges.sort((a, b) => (a.start < b.start ? -1 : 1)),
   };
 }
 
@@ -148,7 +189,7 @@ export function normalizeData(value: unknown): AppData {
   return {
     version: 1,
     pinHash: typeof data.pinHash === 'string' ? data.pinHash : null,
-    profile: asProfile(data.profile),
+    profile: asProfile(data.profile, dayTargets),
     customFoods: Array.isArray(data.customFoods) ? data.customFoods.map(asFood).filter((food): food is Food => food !== null) : [],
     tweaks,
     dayTargets,

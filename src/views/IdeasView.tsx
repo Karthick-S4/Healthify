@@ -36,7 +36,7 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
   const [kind, setKind] = useState<PeriodKind>('day');
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
   const report = reports[kind];
-  const missingCustom = kind === 'custom' && health.data.profile.custom == null;
+  const missingCustom = kind === 'custom' && health.data.profile.ranges.length === 0;
   const todayOver = report.eatenToday > report.dailyTarget;
   const light = todayOver || report.over;
   const ideas = useMemo(() => {

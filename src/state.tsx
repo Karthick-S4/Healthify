@@ -2,11 +2,29 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { captureLinkKey, deviceLink, pullDiary, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
-import { freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
+import { FIRST_DAY, freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
 import { booksEqual, mergeBooks } from './lib/sync';
 import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
+type Targets = { daily: number; week: number | null; month: number | null };
+
+function withTargets(current: AppData, targets: Targets): AppData {
+  const today = todayISO();
+  const earlier = current.profile.plans.filter((plan) => plan.from < today);
+  const from = earlier.length === 0 ? FIRST_DAY : today;
+  return {
+    ...current,
+    profile: {
+      ...current.profile,
+      dailyTarget: targets.daily,
+      weekBudget: targets.week,
+      monthBudget: targets.month,
+      goalSet: true,
+      plans: [...earlier, { from, ...targets }],
+    },
+  };
+}
 type Undo = { ids: string[]; message: string };
 type ListedProfile = { id: string; name: string };
 type CreateResult = 'ok' | 'taken' | 'invalid';
@@ -31,9 +49,9 @@ type HealthApi = {
   removeProfile: (id: string) => void;
   dismissHint: () => void;
   setDailyTarget: (value: number) => void;
-  setWeekBudget: (value: number | null) => void;
-  setMonthBudget: (value: number | null) => void;
-  setCustom: (value: CustomRange | null) => void;
+  setTargets: (targets: { daily: number; week: number | null; month: number | null }) => void;
+  saveRange: (range: CustomRange) => void;
+  removeRange: (id: string) => void;
   addLogs: (entries: NewLog[]) => string[];
   updateLog: (id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside'>>) => void;
   removeLogs: (ids: string[]) => void;
@@ -223,30 +241,6 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   }, [undo]);
 
   useEffect(() => {
-    const today = todayISO();
-    setBook((bookNow) => {
-      const profile = bookNow.profiles.find((item) => item.id === activeId);
-      if (!profile || !profile.data.profile.goalSet || profile.data.dayTargets[today] != null) return bookNow;
-      const now = new Date().toISOString();
-      return stamp(
-        {
-          ...bookNow,
-          profiles: bookNow.profiles.map((item) =>
-            item.id === profile.id
-              ? {
-                  ...item,
-                  updatedAt: now,
-                  data: { ...item.data, dayTargets: { ...item.data.dayTargets, [today]: item.data.profile.dailyTarget } },
-                }
-              : item,
-          ),
-        },
-        now,
-      );
-    });
-  }, [activeId]);
-
-  useEffect(() => {
     if (!activeId) return;
     const current = book.profiles.find((profile) => profile.id === activeId);
     if (current) {
@@ -335,25 +329,26 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     updateData((current) => ({ ...current, hintDismissed: true }));
   }, [updateData]);
 
+  const setTargets = useCallback((targets: { daily: number; week: number | null; month: number | null }) => {
+    updateData((current) => withTargets(current, targets));
+  }, [updateData]);
+
   const setDailyTarget = useCallback((value: number) => {
-    const today = todayISO();
+    updateData((current) => withTargets(current, { daily: value, week: current.profile.weekBudget, month: current.profile.monthBudget }));
+  }, [updateData]);
+
+  const saveRange = useCallback((range: CustomRange) => {
     updateData((current) => ({
       ...current,
-      profile: { ...current.profile, dailyTarget: value, goalSet: true },
-      dayTargets: { ...current.dayTargets, [today]: value },
+      profile: {
+        ...current.profile,
+        ranges: [...current.profile.ranges.filter((item) => item.id !== range.id), range].sort((a, b) => (a.start < b.start ? -1 : 1)),
+      },
     }));
   }, [updateData]);
 
-  const setWeekBudget = useCallback((value: number | null) => {
-    updateData((current) => ({ ...current, profile: { ...current.profile, weekBudget: value } }));
-  }, [updateData]);
-
-  const setMonthBudget = useCallback((value: number | null) => {
-    updateData((current) => ({ ...current, profile: { ...current.profile, monthBudget: value } }));
-  }, [updateData]);
-
-  const setCustom = useCallback((value: CustomRange | null) => {
-    updateData((current) => ({ ...current, profile: { ...current.profile, custom: value } }));
+  const removeRange = useCallback((id: string) => {
+    updateData((current) => ({ ...current, profile: { ...current.profile, ranges: current.profile.ranges.filter((item) => item.id !== id) } }));
   }, [updateData]);
 
   const addLogs = useCallback((entries: NewLog[]) => {
@@ -362,13 +357,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
     }));
-    updateData((current) => {
-      const dayTargets = { ...current.dayTargets };
-      for (const entry of created) {
-        if (dayTargets[entry.date] == null) dayTargets[entry.date] = current.profile.dailyTarget;
-      }
-      return { ...current, dayTargets, logs: [...current.logs, ...created] };
-    });
+    updateData((current) => ({ ...current, logs: [...current.logs, ...created] }));
     return created.map((entry) => entry.id);
   }, [updateData]);
 
@@ -532,9 +521,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       removeProfile,
       dismissHint,
       setDailyTarget,
-      setWeekBudget,
-      setMonthBudget,
-      setCustom,
+      setTargets,
+      saveRange,
+      removeRange,
       addLogs,
       updateLog,
       removeLogs,
@@ -568,9 +557,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       removeProfile,
       dismissHint,
       setDailyTarget,
-      setWeekBudget,
-      setMonthBudget,
-      setCustom,
+      setTargets,
+      saveRange,
+      removeRange,
       addLogs,
       updateLog,
       removeLogs,

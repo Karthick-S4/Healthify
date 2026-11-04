@@ -31,6 +31,13 @@ describe('week marks', () => {
     expect(marks).toEqual(['done', 'missed', 'open', 'future', 'future', 'future', 'future']);
   });
 
+  it('shows an earlier week when asked', () => {
+    const list = [move('a', '2026-10-27')];
+    const marks = weekMarks('2026-11-04', (iso) => activityDay(list, iso), 'missed', '2026-10-28');
+    expect(marks[0].iso).toBe('2026-10-26');
+    expect(marks.map((item) => item.mark)).toEqual(['missed', 'done', 'missed', 'missed', 'missed', 'missed', 'missed']);
+  });
+
   it('shows days without meals as skipped for home meals', () => {
     const logs = [meal('a', '2026-11-02', false), meal('b', '2026-11-04', true)];
     const marks = weekMarks('2026-11-04', (iso) => homeDay(logs, iso), 'skipped').map((item) => item.mark);

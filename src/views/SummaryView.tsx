@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { IconBack } from '../components/Icons';
 import { Ring } from '../components/Ring';
 import { TrendChart } from '../components/TrendChart';
-import { WeekStars, weekDone } from '../components/WeekStars';
+import { StarIcon, WeekStars, weekDone } from '../components/WeekStars';
 import { targetForDay } from '../lib/budget';
-import { addDays, formatLong, formatShort, todayISO, weekRange } from '../lib/dates';
+import { addDays, formatLong, formatRange, formatShort, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { activityDay, activityStreak, homeDay, homeStreak, onTargetDay, onTargetStreak, weekMarks } from '../lib/streaks';
 import { useHealth } from '../state';
@@ -35,19 +36,28 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
   const target = targetForDay(data, today);
   const eaten = data.logs.filter((log) => log.date === today).reduce((sum, log) => sum + log.kcal, 0);
 
+  const [week, setWeek] = useState(today);
+  const shownWeek = weekRange(week);
+  const thisWeek = shownWeek.start === weekRange(today).start;
+
   const streaks = useMemo(() => {
     const targetFor = (iso: string) => targetForDay(data, iso);
     const onTarget = onTargetStreak(data.logs, today, targetFor);
     const home = homeStreak(data.logs, today);
     const move = activityStreak(data.activities, today);
-    const targetMarks = weekMarks(today, (iso) => {
-      const day = onTargetDay(data.logs, iso, targetFor(iso));
-      return iso === today && day === 'done' ? 'empty' : day;
-    }, 'skipped');
-    const homeMarks = weekMarks(today, (iso) => homeDay(data.logs, iso), 'skipped');
-    const moveMarks = weekMarks(today, (iso) => activityDay(data.activities, iso));
+    const targetMarks = weekMarks(
+      today,
+      (iso) => {
+        const day = onTargetDay(data.logs, iso, targetFor(iso));
+        return iso === today && day === 'done' ? 'empty' : day;
+      },
+      'skipped',
+      week,
+    );
+    const homeMarks = weekMarks(today, (iso) => homeDay(data.logs, iso), 'skipped', week);
+    const moveMarks = weekMarks(today, (iso) => activityDay(data.activities, iso), 'missed', week);
     return { onTarget, home, move, targetMarks, homeMarks, moveMarks };
-  }, [data, today]);
+  }, [data, today, week]);
 
   const weights = useMemo(() => [...data.weights].sort((a, b) => (a.date < b.date ? -1 : 1)), [data.weights]);
   const latestWeight = weights[weights.length - 1];
@@ -70,28 +80,32 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
     return [...latest.values()].slice(0, 4);
   }, [data.measures]);
 
+  const targetOver = streaks.onTarget.today === 'over';
   const streakCards = [
     {
       key: 'target',
       title: 'On target',
-      value: streaks.onTarget.today === 'over' ? 'Reset' : String(streaks.onTarget.days),
-      unit: streaks.onTarget.today === 'over' ? 'over today' : streaks.onTarget.days === 1 ? 'day' : 'days',
+      days: streaks.onTarget.days,
+      note: targetOver ? 'Over today’s target, so the count starts again tomorrow.' : 'Days in a row at or under your calorie target.',
       marks: streaks.targetMarks,
-      warn: streaks.onTarget.today === 'over',
+      warn: targetOver,
     },
     {
       key: 'home',
       title: 'Home meals',
-      value: streaks.home.brokeToday ? 'Ended' : String(streaks.home.days),
-      unit: streaks.home.brokeToday ? 'ate out today' : streaks.home.days === 1 ? 'day' : 'days',
+      days: streaks.home.days,
+      note: streaks.home.brokeToday ? 'Ate out today, so the count starts again tomorrow.' : 'Days in a row with only home food.',
       marks: streaks.homeMarks,
       warn: streaks.home.brokeToday,
     },
     {
       key: 'move',
       title: 'Activity',
-      value: String(streaks.move.days),
-      unit: streaks.move.days === 1 ? 'day' : 'days',
+      days: streaks.move.days,
+      note:
+        !streaks.move.doneToday && streaks.move.days > 0
+          ? 'Add an activity today to keep it going.'
+          : 'Days in a row with any activity.',
       marks: streaks.moveMarks,
       warn: false,
     },
@@ -101,11 +115,11 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
     <div className="page summary-page">
       <header className="topbar">
         <div>
+          <h1 className="brand-sm">Healthify</h1>
           <p className="greeting">
             {greeting(new Date().getHours())}
             {health.profileName ? `, ${health.profileName}` : ''}
           </p>
-          <h1 className="brand-sm">Summary</h1>
         </div>
         <p className="dateline">{formatLong(today)}</p>
       </header>
@@ -142,22 +156,54 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
         </div>
       </section>
 
-      <h2 className="section-title">Streaks</h2>
+      <div className="section-head">
+        <h2 className="section-title">Streaks</h2>
+        <div className="week-nav">
+          <button type="button" aria-label="Previous week" onClick={() => setWeek(addDays(shownWeek.start, -7))}>
+            <IconBack />
+          </button>
+          <span>{thisWeek ? 'This week' : formatRange(shownWeek.start, shownWeek.end)}</span>
+          <button type="button" aria-label="Next week" disabled={thisWeek} onClick={() => setWeek(addDays(shownWeek.start, 7))}>
+            <IconBack />
+          </button>
+        </div>
+      </div>
       <div className="streak-grid">
         {streakCards.map((card) => (
           <section key={card.key} className={card.warn ? 'card streak-card warn' : 'card streak-card'}>
             <div className="streak-head">
               <p className="eyebrow">{card.title}</p>
-              <p className="streak-week">{weekDone(card.marks)} of 7 this week</p>
+              <p className="streak-week">
+                {weekDone(card.marks)} of 7 {thisWeek ? 'this week' : 'that week'}
+              </p>
             </div>
             <p className="streak-num">
-              {card.value}
-              <span> {card.unit}</span>
+              {card.days}
+              <span> {card.days === 1 ? 'day' : 'days'} in a row</span>
             </p>
+            <p className="note">{card.note}</p>
             <WeekStars marks={card.marks} />
           </section>
         ))}
       </div>
+      <p className="star-legend">
+        <span className="star-day done">
+          <StarIcon />
+        </span>
+        done
+        <span className="star-day open">
+          <StarIcon />
+        </span>
+        today, not yet
+        <span className="star-day missed">
+          <StarIcon mark="missed" />
+        </span>
+        missed
+        <span className="star-day skipped">
+          <StarIcon mark="skipped" />
+        </span>
+        nothing logged
+      </p>
 
       <h2 className="section-title">Body and activity</h2>
       <div className="summary-grid">

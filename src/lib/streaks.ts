@@ -19,8 +19,9 @@ export function weekMarks(
   today: string,
   result: (iso: string) => DayResult,
   emptyPast: 'missed' | 'skipped' = 'missed',
+  week: string = today,
 ): { iso: string; mark: WeekMark }[] {
-  const { start, end } = weekRange(today);
+  const { start, end } = weekRange(week);
   return eachDate(start, end).map((iso) => {
     if (iso > today) return { iso, mark: 'future' };
     const day = result(iso);

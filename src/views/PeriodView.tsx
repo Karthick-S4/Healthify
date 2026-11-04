@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
+import { IconBack } from '../components/Icons';
 import { MealEditor } from '../components/MealEditor';
 import { buildReports, targetForDay } from '../lib/budget';
-import { addDays, addMonths, eachDate, formatRange, formatShort, formatWeekday, todayISO } from '../lib/dates';
+import { addDays, addMonths, eachDate, formatLong, formatRange, parseISO, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { useHealth } from '../state';
 import type { LogEntry, PeriodKind } from '../types';
@@ -10,17 +11,47 @@ type PeriodViewProps = {
   onOpenMore: () => void;
 };
 
+type DayTone = 'under' | 'near' | 'over' | 'empty' | 'future' | 'outside';
+
+const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const NEAR_SHARE = 0.85;
+
+function toneFor(eaten: number, target: number, logged: boolean): DayTone {
+  if (!logged) return 'empty';
+  if (eaten > target) return 'over';
+  return eaten >= target * NEAR_SHARE ? 'near' : 'under';
+}
+
 export function PeriodView({ onOpenMore }: PeriodViewProps) {
   const health = useHealth();
   const today = todayISO();
   const [kind, setKind] = useState<Exclude<PeriodKind, 'day'>>('week');
   const [anchor, setAnchor] = useState(today);
-  const [openDay, setOpenDay] = useState<string | null>(today);
+  const [picked, setPicked] = useState<string>(today);
   const [editing, setEditing] = useState<LogEntry | null>(null);
   const reports = useMemo(() => buildReports(health.data, today, anchor), [health.data, today, anchor]);
   const report = reports[kind];
   const hasCustom = health.data.profile.custom != null;
-  const days = eachDate(report.start, report.end);
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, LogEntry[]>();
+    for (const log of health.data.logs) {
+      const list = map.get(log.date);
+      if (list) list.push(log);
+      else map.set(log.date, [log]);
+    }
+    return map;
+  }, [health.data.logs]);
+
+  const grid = eachDate(weekRange(report.start).start, weekRange(report.end).end);
+  const selected = picked >= report.start && picked <= report.end ? picked : report.start <= today && today <= report.end ? today : report.start;
+  const selectedLogs = byDay.get(selected) ?? [];
+  const selectedEaten = selectedLogs.reduce((sum, log) => sum + log.kcal, 0);
+  const selectedTarget = targetForDay(health.data, selected);
+  const selectedTone = toneFor(selectedEaten, selectedTarget, selectedLogs.length > 0);
+  const isCurrent = report.start <= today && today <= report.end;
+  const title =
+    kind === 'month' ? parseISO(report.start).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : formatRange(report.start, report.end);
 
   function shift(direction: -1 | 1) {
     if (kind === 'month') setAnchor(addMonths(anchor, direction));
@@ -64,66 +95,101 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
               {health.data.profile.weekBudget == null && kind === 'week' && ' Week budget follows the daily target.'}
               {health.data.profile.monthBudget == null && kind === 'month' && ' Month budget follows the daily target.'}
             </p>
-            {kind !== 'custom' && (
-              <div className="pager">
-                <button type="button" className="ghost" onClick={() => shift(-1)}>
-                  Previous
-                </button>
-                <button type="button" className="ghost" onClick={() => setAnchor(today)}>
-                  Current
-                </button>
-                <button type="button" className="ghost" onClick={() => shift(1)}>
-                  Next
-                </button>
-              </div>
-            )}
           </section>
-          <ul className="day-list">
-            {days.map((iso) => {
-              const dayTarget = targetForDay(health.data, iso);
-              const entries = health.data.logs.filter((log) => log.date === iso);
-              const dayEaten = entries.reduce((sum, log) => sum + log.kcal, 0);
-              const future = iso > today;
-              const missed = !future && iso < today && entries.length === 0;
-              const over = entries.length > 0 && dayEaten > dayTarget;
-              const pct = dayTarget <= 0 ? 0 : Math.min(100, (dayEaten / dayTarget) * 100);
-              return (
-                <li key={iso} className={iso === today ? 'day today' : 'day'}>
-                  <button type="button" className="day-button" onClick={() => setOpenDay(openDay === iso ? null : iso)} aria-expanded={openDay === iso}>
-                    <span className="day-name">
-                      {formatWeekday(iso)} {formatShort(iso)}
-                      {missed && <em>No log</em>}
-                      {future && <em>Ahead</em>}
-                    </span>
-                    <span className="track" aria-hidden="true">
-                      <span className={over ? 'fill over' : 'fill'} style={{ width: `${entries.length === 0 ? 0 : Math.max(pct, 4)}%` }} />
-                    </span>
-                    <b className={over ? 'over-num' : undefined}>{entries.length === 0 ? '—' : formatKcal(dayEaten)}</b>
+
+          <div className="history-side">
+            <section className="card calendar-card">
+              <div className="calendar-head">
+                {kind !== 'custom' && (
+                  <button type="button" className="cal-arrow" aria-label={`Previous ${kind}`} onClick={() => shift(-1)}>
+                    <IconBack />
                   </button>
-                  {openDay === iso && (
-                    entries.length === 0 ? (
-                      <p className="empty">Nothing logged.</p>
-                    ) : (
-                      <ul className="meal-list inset">
-                        {entries.map((log) => (
-                          <li key={log.id}>
-                            <button type="button" className="meal" onClick={() => setEditing(log)}>
-                              <span>
-                                <strong>{log.title}</strong>
-                                {log.outside && <em className="tag">Outside</em>}
-                              </span>
-                              <b>{formatKcal(log.kcal)}</b>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <p className="help">Green stays at or under that day’s target. Terracotta is over. A past day with no log ends the on-target streak.</p>
+                )}
+                <h2>{title}</h2>
+                {kind !== 'custom' && (
+                  <button type="button" className="cal-arrow next" aria-label={`Next ${kind}`} onClick={() => shift(1)}>
+                    <IconBack />
+                  </button>
+                )}
+              </div>
+              {kind !== 'custom' && !isCurrent && (
+                <button type="button" className="text-button cal-today" onClick={() => setAnchor(today)}>
+                  Back to {kind === 'week' ? 'this week' : 'this month'}
+                </button>
+              )}
+              <div className="calendar" role="grid" aria-label="Calories by day">
+                {WEEKDAYS.map((letter, index) => (
+                  <span key={index} className="cal-weekday" aria-hidden="true">
+                    {letter}
+                  </span>
+                ))}
+                {grid.map((iso) => {
+                  const logs = byDay.get(iso) ?? [];
+                  const eaten = logs.reduce((sum, log) => sum + log.kcal, 0);
+                  const inRange = iso >= report.start && iso <= report.end;
+                  const tone: DayTone = !inRange ? 'outside' : iso > today ? 'future' : toneFor(eaten, targetForDay(health.data, iso), logs.length > 0);
+                  const classes = ['cal-day', tone, iso === today ? 'today' : '', iso === selected ? 'picked' : ''].filter(Boolean).join(' ');
+                  return (
+                    <button
+                      key={iso}
+                      type="button"
+                      className={classes}
+                      disabled={!inRange}
+                      aria-pressed={iso === selected}
+                      aria-label={`${formatLong(iso)}, ${logs.length > 0 ? `${formatKcal(eaten)} kcal` : 'nothing logged'}`}
+                      onClick={() => setPicked(iso)}
+                    >
+                      <span className="cal-date">{parseISO(iso).getDate()}</span>
+                      <span className="cal-kcal">{logs.length > 0 ? formatKcal(eaten) : inRange && iso <= today ? '—' : ''}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="cal-legend">
+                <span className="dot under" /> Under
+                <span className="dot near" /> On target
+                <span className="dot over" /> Over
+              </p>
+            </section>
+
+            <section className="card day-detail">
+              <div className="day-detail-head">
+                <div>
+                  <p className="eyebrow">{selected === today ? 'Today' : formatLong(selected)}</p>
+                  <p className={selectedTone === 'over' ? 'day-total over' : 'day-total'}>
+                    {formatKcal(selectedEaten)}
+                    <span> of {formatKcal(selectedTarget)} kcal</span>
+                  </p>
+                </div>
+                {selectedLogs.length > 0 && (
+                  <span className={`tone-chip ${selectedTone}`}>
+                    {selectedTone === 'over'
+                      ? `${formatKcal(selectedEaten - selectedTarget)} over`
+                      : selectedTone === 'near'
+                        ? 'On target'
+                        : `${formatKcal(selectedTarget - selectedEaten)} under`}
+                  </span>
+                )}
+              </div>
+              {selectedLogs.length === 0 ? (
+                <p className="empty">{selected > today ? 'This day hasn’t come yet.' : 'Nothing logged this day.'}</p>
+              ) : (
+                <ul className="meal-list">
+                  {selectedLogs.map((log) => (
+                    <li key={log.id}>
+                      <button type="button" className="meal" onClick={() => setEditing(log)}>
+                        <span>
+                          <strong>{log.title}</strong>
+                          {log.outside && <em className="tag">Outside</em>}
+                        </span>
+                        <b>{formatKcal(log.kcal)}</b>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
         </div>
       )}
       {editing && (

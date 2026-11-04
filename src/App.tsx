@@ -85,10 +85,12 @@ function Shell() {
       )}
       <main>
         {back && (
-          <button type="button" className="back-button" onClick={() => setView(back)}>
-            <IconBack />
-            {back === 'summary' ? 'Summary' : 'Food'}
-          </button>
+          <div className="back-row">
+            <button type="button" className="back-button" onClick={() => setView(back)}>
+              <IconBack />
+              {back === 'summary' ? 'Summary' : 'Food'}
+            </button>
+          </div>
         )}
         {view === 'summary' && <SummaryView onOpen={setView} />}
         {view === 'food' && <TodayView onOpenIdeas={() => setView('ideas')} onOpenMore={() => setView('more')} />}
@@ -108,6 +110,9 @@ function Shell() {
           </div>
         )}
         <nav aria-label="Sections">
+          <p className="side-brand" aria-hidden="true">
+            Healthify
+          </p>
           {TABS.map((item) => (
             <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>
               {item.icon}

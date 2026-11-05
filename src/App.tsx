@@ -44,9 +44,12 @@ function Shell() {
   const goalSet = health.data.profile.goalSet;
   const tab: Tab = isSubView(view) ? PARENT[view] : view;
 
+  const [adding, setAdding] = useState(false);
+
   const show = useCallback((next: View) => {
     viewRef.current = next;
     setShown(next);
+    setAdding(false);
   }, []);
 
   const setView = useCallback(
@@ -58,6 +61,11 @@ function Shell() {
     },
     [show],
   );
+
+  const logFood = useCallback(() => {
+    setView('food');
+    setAdding(true);
+  }, [setView]);
 
   const goBack = useCallback(
     (parent: Tab) => {
@@ -163,8 +171,8 @@ function Shell() {
             </button>
           </div>
         )}
-        {view === 'summary' && <SummaryView onOpen={setView} />}
-        {view === 'food' && <TodayView onOpenIdeas={() => setView('ideas')} onOpenMore={() => setView('more')} />}
+        {view === 'summary' && <SummaryView onOpen={setView} onLogFood={logFood} />}
+        {view === 'food' && <TodayView onOpenIdeas={() => setView('ideas')} onOpenMore={() => setView('more')} startAdding={adding} />}
         {view === 'move' && <ActivityView />}
         {view === 'body' && <BodyView />}
         {view === 'period' && <PeriodView onOpenMore={() => setView('more')} />}

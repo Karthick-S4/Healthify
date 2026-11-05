@@ -1,5 +1,5 @@
 import { newId } from '../lib/id';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { CheatToggle } from '../components/CheatToggle';
 import { MealEditor } from '../components/MealEditor';
 import { MealGroups } from '../components/MealGroups';
@@ -23,6 +23,7 @@ type Pending =
 type TodayViewProps = {
   onOpenIdeas: () => void;
   onOpenMore: () => void;
+  startAdding?: boolean;
 };
 
 function targetNote(streak: OnTargetStreak): string {
@@ -69,9 +70,27 @@ function withPortion(hit: FoodHit, grams: number, unit: 'g' | 'ml'): FoodHit {
   };
 }
 
-export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
+export function TodayView({ onOpenIdeas, onOpenMore, startAdding = false }: TodayViewProps) {
   const health = useHealth();
   const today = todayISO();
+  const composerRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (!startAdding) return;
+    const timer = window.setTimeout(() => {
+      const form = composerRef.current;
+      const main = form?.closest('main');
+      if (!form || !main) return;
+      const layoutTop = (element: HTMLElement) => {
+        let top = 0;
+        for (let node: HTMLElement | null = element; node; node = node.offsetParent as HTMLElement | null) top += node.offsetTop;
+        return top;
+      };
+      main.scrollTop = layoutTop(form) - layoutTop(main) - 14;
+      if (window.matchMedia('(min-width: 960px)').matches) form.querySelector<HTMLInputElement>('#food')?.focus({ preventScroll: true });
+    }, 60);
+    return () => window.clearTimeout(timer);
+  }, [startAdding]);
   const [draft, setDraft] = useState('');
   const [amount, setAmount] = useState('');
   const [measure, setMeasure] = useState<'g' | 'ml'>('g');
@@ -366,7 +385,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       </div>
 
       <div className="today-log">
-      <form className="composer" onSubmit={onSubmit}>
+      <form ref={composerRef} className="composer" onSubmit={onSubmit}>
         <MealPicker value={meal} onChange={setMeal} />
         <label className="field-label" htmlFor="food">
           Food

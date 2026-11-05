@@ -13,6 +13,7 @@ import { useHealth } from '../state';
 
 type SummaryViewProps = {
   onOpen: (view: 'food' | 'move' | 'body' | 'period' | 'more' | 'streaks') => void;
+  onLogFood: () => void;
 };
 
 function greeting(hour: number): string {
@@ -31,7 +32,7 @@ function signed(value: number, unit: string): string {
   return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded)} ${unit}`;
 }
 
-export function SummaryView({ onOpen }: SummaryViewProps) {
+export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
   const health = useHealth();
   const data = health.data;
   const today = todayISO();
@@ -107,7 +108,7 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
                 : `${formatKcal(target - eaten)} kcal left`}
           </p>
           <div className="composer-actions">
-            <button type="button" className="primary" onClick={() => onOpen('food')}>
+            <button type="button" className="primary" onClick={onLogFood}>
               Log food
             </button>
             <button type="button" className="ghost" onClick={() => onOpen('period')}>

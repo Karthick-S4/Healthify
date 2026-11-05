@@ -80,6 +80,32 @@ describe('apple health import', () => {
     expect(data.healthFiles).toEqual([file.name, later.name]);
   });
 
+  it('adds up every value in a plain text Shortcut result', () => {
+    const text = [
+      'Profile: Niv',
+      'Today’s Health Data:',
+      'Steps (Walking): 43',
+      '36',
+      '46',
+      '115',
+      'Active Calories: 3.839',
+      '0',
+      'Stand Time: ',
+      '15',
+      '40',
+      '0',
+    ].join('\n');
+    const result = readHealthFile(text, '20261105-184900.txt');
+    expect(result.profile).toBe('Niv');
+    expect(result.days).toEqual({ '2026-11-05': { steps: 240, activeKcal: 4, exerciseMin: 0, standMin: 55 } });
+  });
+
+  it('takes the profile and day from the file name when the text has none', () => {
+    const result = readHealthFile('Steps: 1,200\n300\nExercise Minutes: 12\n8', 'Niv-20261104-2100.txt');
+    expect(result.profile).toBe('Niv');
+    expect(result.days).toEqual({ '2026-11-04': { steps: 1500, activeKcal: 0, exerciseMin: 20, standMin: 0 } });
+  });
+
   it('does not bring back a walk she deleted, and reports unknown profiles', () => {
     const book = bookWith('Niv');
     const removed = { ...book, profiles: book.profiles.map((profile) => ({ ...profile, data: { ...profile.data, removedLogIds: [`apple-${new Date('2026-11-05T07:00:00+05:30').toISOString()}`] } })) };

@@ -138,7 +138,74 @@ function workoutName(name: string): string {
   return (clean[0].toLocaleUpperCase() + clean.slice(1)).slice(0, 40);
 }
 
-export function readHealthFile(body: unknown): FileResult {
+function textKind(label: string): Exclude<Kind, 'workout'> | null {
+  const text = label.toLocaleLowerCase();
+  if (text.includes('distance')) return null;
+  if (text.includes('step')) return 'steps';
+  if (text.includes('energ') || text.includes('cal')) return 'energy';
+  if (text.includes('exerc')) return 'exercise';
+  if (text.includes('stand')) return 'stand';
+  return null;
+}
+
+export function readHealthText(text: string, fileName = '', today = localDay(Date.now())): FileResult {
+  let profile: string | null = null;
+  let day: string | null = null;
+  const totals: DayTotals = { steps: 0, activeKcal: 0, exerciseMin: 0, standMin: 0 };
+  const field: Record<Exclude<Kind, 'workout'>, keyof DayTotals> = { steps: 'steps', energy: 'activeKcal', exercise: 'exerciseMin', stand: 'standMin' };
+  let current: Exclude<Kind, 'workout'> | null = null;
+  let used = 0;
+  let skipped = 0;
+  const add = (raw: string) => {
+    const value = healthNumber(raw);
+    if (value === null || value < 0) {
+      skipped += 1;
+      return;
+    }
+    if (!current) return;
+    totals[field[current]] += value;
+    used += 1;
+  };
+  for (const line of text.split(/\r?\n/).map((item) => item.trim()).filter(Boolean)) {
+    const colon = line.indexOf(':');
+    if (colon >= 0 && !/^\d/.test(line)) {
+      const label = line.slice(0, colon).trim();
+      const rest = line.slice(colon + 1).trim();
+      if (/^(profile|name)$/i.test(label)) {
+        profile = rest || null;
+        current = null;
+        continue;
+      }
+      if (/^date$/i.test(label)) {
+        day = ISO_DAY.exec(rest)?.[1] ?? day;
+        current = null;
+        continue;
+      }
+      current = textKind(label);
+      if (rest && current) add(rest);
+      continue;
+    }
+    if (current) add(line);
+  }
+  if (!profile) {
+    const prefix = /^([^\d_-][^_-]*)[_-]/.exec(fileName)?.[1]?.trim();
+    profile = prefix || null;
+  }
+  if (!day) {
+    const stamp = /(\d{4})-?(\d{2})-?(\d{2})/.exec(fileName);
+    day = stamp ? `${stamp[1]}-${stamp[2]}-${stamp[3]}` : today;
+  }
+  const rounded: DayTotals = {
+    steps: Math.round(totals.steps),
+    activeKcal: Math.round(totals.activeKcal),
+    exerciseMin: Math.round(totals.exerciseMin),
+    standMin: Math.round(totals.standMin),
+  };
+  return { profile, days: used > 0 ? { [day]: rounded } : {}, workouts: [], used, skipped };
+}
+
+export function readHealthFile(body: unknown, fileName = ''): FileResult {
+  if (typeof body === 'string') return readHealthText(body, fileName);
   const payload = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   const profile = typeof payload.profile === 'string' && payload.profile.trim() ? payload.profile.trim() : null;
   const rawSamples = Array.isArray(payload.samples) ? payload.samples : [];
@@ -245,7 +312,7 @@ export function applyHealthFiles(
   const unmatched: string[] = [];
   let profiles = book.profiles;
   for (const file of files) {
-    const result = readHealthFile(file.body);
+    const result = readHealthFile(file.body, file.name);
     const key = result.profile?.toLocaleLowerCase();
     const target = key ? profiles.find((profile) => profile.name.trim().toLocaleLowerCase() === key) : undefined;
     if (!target || target.data.healthFiles.includes(file.name)) {

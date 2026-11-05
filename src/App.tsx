@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { HeartMark, IconBack, IconBody, IconFood, IconMore, IconMove, IconSummary } from './components/Icons';
+import { PullIndicator, usePullToRefresh } from './components/PullToRefresh';
 import { HealthProvider, useHealth } from './state';
 import { ActivityView } from './views/ActivityView';
 import { BodyView } from './views/BodyView';
@@ -35,6 +36,18 @@ function asView(value: unknown): View | null {
   return typeof value === 'string' && VIEWS.has(value) ? (value as View) : null;
 }
 
+async function newVersion(): Promise<boolean> {
+  const url = new URL('version.json', document.baseURI);
+  url.searchParams.set('ts', String(Date.now()));
+  try {
+    const response = await fetch(url, { cache: 'no-store' });
+    const body = response.ok ? ((await response.json()) as { buildId?: string }) : null;
+    return Boolean(body?.buildId && body.buildId !== __BUILD_ID__);
+  } catch {
+    return false;
+  }
+}
+
 function Shell() {
   const health = useHealth();
   const [view, setShown] = useState<View>('summary');
@@ -45,6 +58,16 @@ function Shell() {
   const tab: Tab = isSubView(view) ? PARENT[view] : view;
 
   const [adding, setAdding] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const { refreshNow } = health;
+  const pullRefresh = useCallback(async () => {
+    if (await newVersion()) {
+      window.location.reload();
+      return;
+    }
+    await refreshNow();
+  }, [refreshNow]);
+  const pulled = usePullToRefresh(mainRef, pullRefresh, !typing && Boolean(health.profileId) && goalSet);
 
   const show = useCallback((next: View) => {
     viewRef.current = next;
@@ -112,14 +135,9 @@ function Shell() {
 
   useEffect(() => {
     const check = () => {
-      const url = new URL('version.json', document.baseURI);
-      url.searchParams.set('ts', String(Date.now()));
-      fetch(url, { cache: 'no-store' })
-        .then((response) => (response.ok ? response.json() : null))
-        .then((body: { buildId?: string } | null) => {
-          if (body?.buildId && body.buildId !== __BUILD_ID__) setUpdateReady(true);
-        })
-        .catch(() => undefined);
+      newVersion().then((ready) => {
+        if (ready) setUpdateReady(true);
+      });
     };
     const onVisible = () => {
       if (document.visibilityState === 'visible') check();
@@ -162,7 +180,8 @@ function Shell() {
           </button>
         </div>
       )}
-      <main>
+      <main ref={mainRef}>
+        <PullIndicator pull={pulled.pull} phase={pulled.phase} />
         {back && (
           <div className="back-row">
             <button type="button" className="back-button" onClick={() => goBack(back)}>

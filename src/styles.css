@@ -149,6 +149,11 @@ main {
   padding-top: env(safe-area-inset-top);
   padding-bottom: calc(104px + env(safe-area-inset-bottom));
 }
+.ptr { display: flex; align-items: center; justify-content: center; gap: 8px; overflow: hidden; color: var(--muted); font-size: 0.8rem; font-weight: 650; }
+.ptr.settling { transition: height 0.2s ease; }
+.ptr-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--accent); flex: none; }
+.ptr-spin.on { animation: ptr-spin 0.8s linear infinite; }
+@keyframes ptr-spin { to { transform: rotate(360deg); } }
 .page { padding: 16px 16px 24px; display: flex; flex-direction: column; gap: 14px; }
 .today-status, .today-log, .split { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 

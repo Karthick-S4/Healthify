@@ -42,6 +42,7 @@ type HealthApi = {
   sync: SyncStatus;
   healthIssue: boolean;
   syncHealth: () => Promise<void>;
+  refreshNow: () => Promise<void>;
   connect: (key: string) => Promise<SyncStatus>;
   disconnect: () => void;
   linkForDevice: () => string | null;
@@ -227,15 +228,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     [enqueue, publish, refresh],
   );
 
-  const syncHealth = useCallback(
+  const refreshNow = useCallback(
     () =>
       new Promise<void>((resolve) => {
-        if (/iPhone/.test(navigator.userAgent)) {
-          awaitingShortcut.current = true;
-          window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(HEALTH_SHORTCUT)}`;
-          resolve();
-          return;
-        }
         enqueue(async () => {
           await refresh();
           resolve();
@@ -243,6 +238,13 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       }),
     [enqueue, refresh],
   );
+
+  const syncHealth = useCallback(() => {
+    if (!/iPhone/.test(navigator.userAgent)) return refreshNow();
+    awaitingShortcut.current = true;
+    window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(HEALTH_SHORTCUT)}`;
+    return Promise.resolve();
+  }, [refreshNow]);
 
   const disconnect = useCallback(() => {
     saveSyncKey(null);
@@ -668,6 +670,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       sync,
       healthIssue,
       syncHealth,
+      refreshNow,
       connect,
       disconnect,
       linkForDevice,
@@ -712,6 +715,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       sync,
       healthIssue,
       syncHealth,
+      refreshNow,
       connect,
       disconnect,
       linkForDevice,

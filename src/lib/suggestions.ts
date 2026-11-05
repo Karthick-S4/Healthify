@@ -6,6 +6,9 @@ import { parseFoodList, type FoodHit } from './parseFood';
 
 export type { MealSlot };
 
+export const MEAL_SLOTS: MealSlot[] = ['morning', 'midday', 'snack', 'evening'];
+export const MEAL_LABEL: Record<MealSlot, string> = { morning: 'Breakfast', midday: 'Lunch', snack: 'Snack', evening: 'Dinner' };
+
 export type MealTemplate = {
   title: string;
   query: string;

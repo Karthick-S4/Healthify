@@ -463,6 +463,51 @@ input:focus {
   color: var(--muted);
 }
 .unit-toggle button.on { background: var(--glass-strong); color: var(--ink); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+.meal-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--track);
+}
+.meal-picker button {
+  min-height: 40px;
+  min-width: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 650;
+}
+.meal-picker button.on { background: var(--glass-strong); color: var(--accent-ink); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+.meal-group + .meal-group { margin-top: 10px; }
+.meal-group-head {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 2px 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.idea-form { gap: 10px; }
+.idea-row { display: flex; flex-direction: column; gap: 4px; }
+.idea-row-fields { display: grid; grid-template-columns: minmax(0, 1fr) 52px 84px auto; gap: 6px; align-items: center; }
+.idea-row-fields .idea-amount { padding: 0 8px; text-align: center; }
+.idea-row-fields select {
+  min-height: 50px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0 8px;
+  background: var(--glass-soft);
+}
+.idea-row-fields .icon-button { width: 36px; }
+.idea-row-note { font-size: 0.8rem; color: var(--muted); padding-left: 4px; }
+.idea-row-missing { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; align-items: center; }
 .primary, .ghost, .danger, .choice, .pill {
   min-height: 50px;
   border-radius: 999px;

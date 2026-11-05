@@ -23,6 +23,7 @@ export type LogEntry = {
   kcal: number;
   outside: boolean;
   foodId?: string;
+  meal?: MealSlot;
   createdAt: string;
 };
 

@@ -53,7 +53,7 @@ type HealthApi = {
   saveRange: (range: CustomRange) => void;
   removeRange: (id: string) => void;
   addLogs: (entries: NewLog[]) => string[];
-  updateLog: (id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside'>>) => void;
+  updateLog: (id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside' | 'meal'>>) => void;
   removeLogs: (ids: string[]) => void;
   addWeight: (date: string, kg: number) => void;
   addMeasure: (date: string, part: string, cm: number) => void;
@@ -410,7 +410,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     return created.map((entry) => entry.id);
   }, [updateData]);
 
-  const updateLog = useCallback((id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside'>>) => {
+  const updateLog = useCallback((id: string, patch: Partial<Pick<LogEntry, 'title' | 'kcal' | 'outside' | 'meal'>>) => {
     updateData((current) => ({
       ...current,
       logs: current.logs.map((log) => (log.id === id ? { ...log, ...patch } : log)),

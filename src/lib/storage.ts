@@ -139,6 +139,7 @@ function asLog(value: unknown): LogEntry | null {
     kcal: Math.round(log.kcal),
     outside: Boolean(log.outside),
     foodId: typeof log.foodId === 'string' ? log.foodId : undefined,
+    ...(SLOTS.includes(log.meal as MealSlot) ? { meal: log.meal } : {}),
     createdAt: typeof log.createdAt === 'string' ? log.createdAt : new Date().toISOString(),
   };
 }

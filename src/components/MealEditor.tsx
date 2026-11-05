@@ -1,17 +1,24 @@
 import { useEffect, useState } from 'react';
-import type { LogEntry } from '../types';
+import { slotForHour } from '../lib/suggestions';
+import type { LogEntry, MealSlot } from '../types';
+import { MealPicker } from './MealPicker';
 
 type MealEditorProps = {
   log: LogEntry;
   onClose: () => void;
-  onSave: (patch: { title: string; kcal: number; outside: boolean }) => void;
+  onSave: (patch: { title: string; kcal: number; outside: boolean; meal: MealSlot }) => void;
   onDelete: () => void;
 };
+
+function mealOf(log: LogEntry): MealSlot {
+  return log.meal ?? slotForHour(new Date(log.createdAt).getHours());
+}
 
 export function MealEditor({ log, onClose, onSave, onDelete }: MealEditorProps) {
   const [title, setTitle] = useState(log.title);
   const [kcal, setKcal] = useState(String(log.kcal));
   const [outside, setOutside] = useState(log.outside);
+  const [meal, setMeal] = useState<MealSlot>(() => mealOf(log));
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,6 +26,7 @@ export function MealEditor({ log, onClose, onSave, onDelete }: MealEditorProps) 
     setTitle(log.title);
     setKcal(String(log.kcal));
     setOutside(log.outside);
+    setMeal(mealOf(log));
     setConfirming(false);
     setError(null);
   }, [log]);
@@ -33,6 +41,7 @@ export function MealEditor({ log, onClose, onSave, onDelete }: MealEditorProps) 
         onClick={(event) => event.stopPropagation()}
       >
         <h2 id="meal-editor-title">Edit meal</h2>
+        <MealPicker value={meal} onChange={setMeal} />
         <label className="field-label" htmlFor="meal-title">
           Name
         </label>
@@ -64,7 +73,7 @@ export function MealEditor({ log, onClose, onSave, onDelete }: MealEditorProps) 
                 setError('Enter calories from 0 to 5,000.');
                 return;
               }
-              onSave({ title: title.trim(), kcal: calories, outside });
+              onSave({ title: title.trim(), kcal: calories, outside, meal });
             }}
           >
             Save

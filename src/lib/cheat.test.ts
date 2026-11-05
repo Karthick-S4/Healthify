@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freshData, normalizeBook } from './storage';
+import { emptyShared, freshData, normalizeBook } from './storage';
 import { activityDay, activityStreak, cheatInWeek, homeDay, homeStreak, onTargetStreak, weekMarks, withCheat } from './streaks';
 import { mergeBooks } from './sync';
 import type { ActivityEntry, CheatDay, LogEntry, ProfileBook } from '../types';
@@ -72,6 +72,7 @@ describe('cheat day', () => {
       version: 1,
       updatedAt,
       removedProfileIds: [],
+      shared: emptyShared(),
       profiles: [{ id: 'p', name: 'Priya', updatedAt, data }],
     });
     const merged = mergeBooks(book(phone, '2026-11-04T03:00:00.000Z'), book(laptop, '2026-11-04T09:00:00.000Z')).profiles[0].data;

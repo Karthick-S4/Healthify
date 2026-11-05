@@ -142,6 +142,16 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
       setError(`Type the calories for ${cleanName(blankKcal.row.name)}, or remove that dish.`);
       return;
     }
+    const corrections = filled.flatMap(({ row, status }) =>
+      status.kind === 'known' && status.kcal != null && status.kcal !== status.estimate
+        ? [{ row, food: status.hit.food, kcal: status.kcal, kcalPer100g: Math.round(((status.kcal * 100) / Math.max(status.hit.grams, 1)) * 10) / 10 }]
+        : [],
+    );
+    const tooRich = corrections.find((item) => item.kcalPer100g > 900);
+    if (tooRich) {
+      setError(`${formatKcal(tooRich.kcal)} kcal is too much for that amount of ${tooRich.food.name}. Check the amount or the calories.`);
+      return;
+    }
     const name = (title.trim() || filled.map((item) => displayName(cleanName(item.row.name))).join(', ')).slice(0, 60);
     if (health.data.customIdeas.some((idea) => ideaKey(idea.title) === ideaKey(name))) {
       setError('You already have an idea with this name.');
@@ -165,9 +175,13 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
       };
       health.addCustomFood(food);
     }
-    const parts = filled.map(({ row, status }) => (status.kind === 'known' && status.kcal != null ? `${partFor(row)} ${status.kcal}kcal` : partFor(row)));
-    health.addIdea(name, parts.join(', '), slot);
-    onSaved(`Saved “${name}” to ${MEAL_LABEL[slot].toLowerCase()} ideas · ${formatKcal(total)} kcal.`);
+    for (const { food, kcalPer100g } of corrections) {
+      if (food.source === 'custom') health.updateCustomFood(food.id, { kcalPer100g, pieceGrams: food.pieceGrams });
+      else health.tweakFood(food.id, { kcalPer100g, pieceGrams: food.pieceGrams });
+    }
+    health.addIdea(name, filled.map((item) => partFor(item.row)).join(', '), slot);
+    const updated = corrections.length > 0 ? ` Updated ${corrections.map((item) => item.food.name).join(', ')} for every profile.` : '';
+    onSaved(`Saved “${name}” to ${MEAL_LABEL[slot].toLowerCase()} ideas · ${formatKcal(total)} kcal.${updated}`);
     setRows([blank(), blank()]);
     setTitle('');
     setError(null);

@@ -138,7 +138,7 @@ export function MoreView() {
     if (food.source === 'custom') health.updateCustomFood(food.id, { kcalPer100g, pieceGrams });
     else health.tweakFood(food.id, { kcalPer100g, pieceGrams });
     setError(null);
-    setMessage(`${food.name} updated.`);
+    setMessage(`${food.name} updated for every profile.`);
   }
 
   return (
@@ -297,7 +297,7 @@ export function MoreView() {
                         <button type="button" className="primary" onClick={() => saveFood(food)}>
                           Save food
                         </button>
-                        {food.source === 'built-in' && health.data.tweaks[food.id] && (
+                        {food.source === 'built-in' && health.isTweaked(food.id) && (
                           <button type="button" className="ghost" onClick={() => health.tweakFood(food.id, null)}>
                             Reset
                           </button>

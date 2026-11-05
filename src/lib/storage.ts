@@ -14,6 +14,8 @@ import type {
   Profile,
   ProfileBook,
   ProfileRecord,
+  SharedFoods,
+  SharedTweak,
   TargetPlan,
   WeightEntry,
 } from '../types';
@@ -212,6 +214,40 @@ function asProfile(value: unknown, dayTargets: Record<string, number>): Profile 
   };
 }
 
+function asTweak(value: unknown): FoodTweak | null {
+  if (!value || typeof value !== 'object') return null;
+  const tweak = value as FoodTweak;
+  const next: FoodTweak = {};
+  if (typeof tweak.kcalPer100g === 'number' && Number.isFinite(tweak.kcalPer100g)) next.kcalPer100g = tweak.kcalPer100g;
+  if (typeof tweak.pieceGrams === 'number' && Number.isFinite(tweak.pieceGrams)) next.pieceGrams = tweak.pieceGrams;
+  return next;
+}
+
+export function emptyShared(): SharedFoods {
+  return { foods: [], tweaks: {}, removedFoodIds: [] };
+}
+
+function asShared(value: unknown): SharedFoods {
+  if (!value || typeof value !== 'object') return emptyShared();
+  const shared = value as Partial<SharedFoods>;
+  const removedFoodIds = asIds(shared.removedFoodIds);
+  const tweaks: Record<string, SharedTweak> = {};
+  if (shared.tweaks && typeof shared.tweaks === 'object') {
+    for (const [id, raw] of Object.entries(shared.tweaks)) {
+      const next = asTweak(raw);
+      const updatedAt = (raw as Partial<SharedTweak>).updatedAt;
+      if (next && typeof updatedAt === 'string') tweaks[id] = { ...next, updatedAt };
+    }
+  }
+  return {
+    foods: Array.isArray(shared.foods)
+      ? shared.foods.map(asFood).filter((food): food is Food => food !== null && !removedFoodIds.includes(food.id))
+      : [],
+    tweaks,
+    removedFoodIds,
+  };
+}
+
 export function normalizeData(value: unknown): AppData {
   const base = freshData();
   if (!value || typeof value !== 'object') return base;
@@ -219,11 +255,8 @@ export function normalizeData(value: unknown): AppData {
   const tweaks: Record<string, FoodTweak> = {};
   if (data.tweaks && typeof data.tweaks === 'object') {
     for (const [id, tweak] of Object.entries(data.tweaks)) {
-      if (!tweak || typeof tweak !== 'object') continue;
-      const next: FoodTweak = {};
-      if (typeof tweak.kcalPer100g === 'number') next.kcalPer100g = tweak.kcalPer100g;
-      if (typeof tweak.pieceGrams === 'number') next.pieceGrams = tweak.pieceGrams;
-      if (next.kcalPer100g != null || next.pieceGrams != null) tweaks[id] = next;
+      const next = asTweak(tweak);
+      if (next && (next.kcalPer100g != null || next.pieceGrams != null)) tweaks[id] = next;
     }
   }
   const dayTargets: Record<string, number> = {};
@@ -271,7 +304,7 @@ export function isProfileName(value: string): boolean {
 }
 
 export function emptyBook(): ProfileBook {
-  return { version: 1, updatedAt: '', profiles: [], removedProfileIds: [] };
+  return { version: 1, updatedAt: '', profiles: [], removedProfileIds: [], shared: emptyShared() };
 }
 
 function asProfileRecord(value: unknown): ProfileRecord | null {
@@ -299,6 +332,7 @@ export function normalizeBook(value: unknown): ProfileBook {
     updatedAt: typeof book.updatedAt === 'string' ? book.updatedAt : '',
     profiles,
     removedProfileIds: asIds(book.removedProfileIds),
+    shared: asShared(book.shared),
   };
 }
 

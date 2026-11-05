@@ -1,5 +1,5 @@
 import { BUILT_IN_FOODS } from '../data/foods';
-import type { AppData, Food } from '../types';
+import type { AppData, Food, SharedFoods, SharedTweak } from '../types';
 
 const SPECIAL_SINGULAR: Record<string, string> = {
   idlies: 'idli',
@@ -284,12 +284,22 @@ export function estimateFromFoods(name: string, foods: Food[]): { name: string; 
   return { name: correctQuery(name, foods), kcalPer100g: Math.round(mid) };
 }
 
-export function allFoods(data: Pick<AppData, 'customFoods' | 'tweaks'>): Food[] {
-  const built = BUILT_IN_FOODS.map((food) => {
-    const tweak = data.tweaks[food.id];
-    return tweak ? { ...food, ...tweak } : food;
-  });
-  return [...data.customFoods, ...built];
+export function sharedTweakOn(shared: SharedFoods | undefined, id: string): SharedTweak | null {
+  const tweak = shared?.tweaks[id];
+  return tweak && (tweak.kcalPer100g != null || tweak.pieceGrams != null) ? tweak : null;
+}
+
+export function allFoods(data: Pick<AppData, 'customFoods' | 'tweaks'>, shared?: SharedFoods): Food[] {
+  const fix = (food: Food): Food => {
+    const common = sharedTweakOn(shared, food.id);
+    if (common) return { ...food, ...(common.kcalPer100g != null ? { kcalPer100g: common.kcalPer100g } : {}), ...(common.pieceGrams != null ? { pieceGrams: common.pieceGrams } : {}) };
+    const own = shared?.tweaks[food.id] ? null : data.tweaks[food.id];
+    return own ? { ...food, ...own } : food;
+  };
+  const sharedFoods = shared?.foods ?? [];
+  const sharedIds = new Set(sharedFoods.map((food) => food.id));
+  const own = data.customFoods.filter((food) => !sharedIds.has(food.id)).map(fix);
+  return [...sharedFoods, ...own, ...BUILT_IN_FOODS.map(fix)];
 }
 
 export function kcalFor(food: Food, grams: number): number {

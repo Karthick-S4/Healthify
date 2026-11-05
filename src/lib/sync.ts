@@ -1,5 +1,5 @@
-import { normalizeBook } from './storage';
-import type { AppData, Food, LogEntry, ProfileBook, ProfileRecord } from '../types';
+import { emptyShared, normalizeBook } from './storage';
+import type { AppData, Food, LogEntry, ProfileBook, ProfileRecord, SharedFoods, SharedTweak } from '../types';
 
 function time(value: string): number {
   const parsed = Date.parse(value);
@@ -64,7 +64,25 @@ function mergeProfiles(left: ProfileRecord, right: ProfileRecord): ProfileRecord
   };
 }
 
+function mergeShared(older: SharedFoods, newer: SharedFoods): SharedFoods {
+  const removedFoodIds = unique([...older.removedFoodIds, ...newer.removedFoodIds]);
+  const foods = new Map<string, Food>();
+  for (const food of [...older.foods, ...newer.foods]) {
+    if (!removedFoodIds.includes(food.id)) foods.set(food.id, food);
+  }
+  const tweaks: Record<string, SharedTweak> = { ...older.tweaks };
+  for (const [id, tweak] of Object.entries(newer.tweaks)) {
+    const kept = tweaks[id];
+    if (!kept || time(tweak.updatedAt) >= time(kept.updatedAt)) tweaks[id] = tweak;
+  }
+  return { foods: [...foods.values()], tweaks, removedFoodIds };
+}
+
 export function mergeBooks(left: ProfileBook, right: ProfileBook): ProfileBook {
+  const rightNewer = time(right.updatedAt) >= time(left.updatedAt);
+  const leftShared = left.shared ?? emptyShared();
+  const rightShared = right.shared ?? emptyShared();
+  const shared = rightNewer ? mergeShared(leftShared, rightShared) : mergeShared(rightShared, leftShared);
   const removed = new Set([...left.removedProfileIds, ...right.removedProfileIds]);
   const profiles = new Map<string, ProfileRecord>();
   for (const profile of left.profiles) {
@@ -95,10 +113,36 @@ export function mergeBooks(left: ProfileBook, right: ProfileBook): ProfileBook {
   }
   return {
     version: 1,
-    updatedAt: time(right.updatedAt) >= time(left.updatedAt) ? right.updatedAt : left.updatedAt,
+    updatedAt: rightNewer ? right.updatedAt : left.updatedAt,
     profiles: named,
     removedProfileIds: [...removed],
+    shared,
   };
+}
+
+export function liftFoods(book: ProfileBook, now = new Date().toISOString()): ProfileBook {
+  const shared = book.shared ?? emptyShared();
+  const foods = [...shared.foods];
+  const known = new Set([...foods.map((food) => food.id), ...shared.removedFoodIds]);
+  const tweaks = { ...shared.tweaks };
+  let changed = false;
+  const oldestFirst = [...book.profiles].sort((a, b) => time(a.updatedAt) - time(b.updatedAt));
+  for (const profile of oldestFirst) {
+    for (const food of profile.data.customFoods) {
+      if (known.has(food.id) || profile.data.removedFoodIds.includes(food.id)) continue;
+      known.add(food.id);
+      foods.push(food);
+      changed = true;
+    }
+  }
+  for (const profile of [...oldestFirst].reverse()) {
+    for (const [id, tweak] of Object.entries(profile.data.tweaks)) {
+      if (tweaks[id]) continue;
+      tweaks[id] = { ...tweak, updatedAt: profile.updatedAt || now };
+      changed = true;
+    }
+  }
+  return changed ? { ...book, updatedAt: now, shared: { ...shared, foods, tweaks } } : book;
 }
 
 export function booksEqual(left: ProfileBook, right: ProfileBook): boolean {

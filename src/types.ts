@@ -128,11 +128,20 @@ export type ProfileRecord = {
   data: AppData;
 };
 
+export type SharedTweak = FoodTweak & { updatedAt: string };
+
+export type SharedFoods = {
+  foods: Food[];
+  tweaks: Record<string, SharedTweak>;
+  removedFoodIds: string[];
+};
+
 export type ProfileBook = {
   version: 1;
   updatedAt: string;
   profiles: ProfileRecord[];
   removedProfileIds: string[];
+  shared: SharedFoods;
 };
 
 export type PeriodKind = 'day' | 'week' | 'month' | 'custom';

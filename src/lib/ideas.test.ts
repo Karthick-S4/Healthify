@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_FOODS } from '../data/foods';
-import { freshData, normalizeBook } from './storage';
+import { emptyShared, freshData, normalizeBook } from './storage';
 import { previewIdea, suggestMeals } from './suggestions';
 import { mergeBooks } from './sync';
 import type { AppData, ProfileBook } from '../types';
@@ -8,7 +8,7 @@ import type { AppData, ProfileBook } from '../types';
 const base = { foods: BUILT_IN_FOODS, logs: [], today: '2026-11-05', room: 1200, hour: 13, light: false };
 
 function book(data: AppData, updatedAt: string): ProfileBook {
-  return { version: 1, updatedAt, removedProfileIds: [], profiles: [{ id: 'p', name: 'Priya', updatedAt, data }] };
+  return { version: 1, updatedAt, removedProfileIds: [], profiles: [{ id: 'p', name: 'Priya', updatedAt, data }], shared: emptyShared() };
 }
 
 describe('meal ideas', () => {

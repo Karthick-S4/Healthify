@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freshData, normalizeBook } from './storage';
+import { emptyShared, freshData, normalizeBook } from './storage';
 import { activityDay, activityStreak, homeDay, weekMarks } from './streaks';
 import { mergeBooks } from './sync';
 import type { ActivityEntry, LogEntry, ProfileBook } from '../types';
@@ -57,6 +57,7 @@ describe('body and activity sync', () => {
       version: 1,
       updatedAt,
       removedProfileIds: [],
+      shared: emptyShared(),
       profiles: [{ id: 'p', name: 'Priya', updatedAt, data }],
     });
     const merged = mergeBooks(book(left, '2026-11-04T01:00:00.000Z'), book(right, '2026-11-04T02:00:00.000Z')).profiles[0].data;

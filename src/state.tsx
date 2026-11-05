@@ -1,10 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { captureLinkKey, deviceLink, pullDiary, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
-import { allFoods } from './lib/foods';
+import { allFoods, sharedTweakOn } from './lib/foods';
 import { FIRST_DAY, freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
-import { booksEqual, mergeBooks } from './lib/sync';
-import type { AppData, CustomRange, Food, FoodTweak, LogEntry, MealSlot, ProfileBook, ProfileRecord } from './types';
+import { booksEqual, liftFoods, mergeBooks } from './lib/sync';
+import type { AppData, CustomRange, Food, FoodTweak, LogEntry, MealSlot, ProfileBook, ProfileRecord, SharedFoods } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Targets = { daily: number; week: number | null; month: number | null };
@@ -69,6 +69,7 @@ type HealthApi = {
   updateCustomFood: (id: string, patch: Pick<Food, 'kcalPer100g' | 'pieceGrams'>) => void;
   deleteCustomFood: (id: string) => void;
   tweakFood: (id: string, tweak: FoodTweak | null) => void;
+  isTweaked: (id: string) => boolean;
   importData: (data: AppData) => void;
 };
 
@@ -302,7 +303,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     writeUrlProfile(activeProfileName);
   }, [activeProfileName, ready]);
 
-  const foods = useMemo(() => allFoods(data), [data]);
+  const foods = useMemo(() => allFoods(data, book.shared), [data, book.shared]);
 
   const updateData = useCallback((recipe: (current: AppData) => AppData) => {
     const now = new Date().toISOString();
@@ -540,41 +541,48 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     });
   }, [updateData]);
 
+  const updateShared = useCallback((recipe: (current: SharedFoods) => SharedFoods) => {
+    const now = new Date().toISOString();
+    setBook((bookNow) => stamp({ ...bookNow, shared: recipe(bookNow.shared) }, now));
+  }, []);
+
   const addCustomFood = useCallback((food: Food) => {
-    updateData((current) => ({
-      ...current,
-      customFoods: [food, ...current.customFoods.filter((item) => item.id !== food.id)],
-      removedFoodIds: current.removedFoodIds.filter((item) => item !== food.id),
-    }));
-  }, [updateData]);
+    updateShared((current) => ({ ...current, foods: [food, ...current.foods.filter((item) => item.id !== food.id)] }));
+  }, [updateShared]);
 
   const updateCustomFood = useCallback((id: string, patch: Pick<Food, 'kcalPer100g' | 'pieceGrams'>) => {
-    updateData((current) => ({
-      ...current,
-      customFoods: current.customFoods.map((food) => (food.id === id ? { ...food, ...patch } : food)),
-    }));
-  }, [updateData]);
+    const legacy = bookRef.current.profiles.flatMap((profile) => profile.data.customFoods).find((food) => food.id === id);
+    updateShared((current) => {
+      const existing = current.foods.find((food) => food.id === id) ?? legacy;
+      if (!existing) return current;
+      return { ...current, foods: [{ ...existing, ...patch }, ...current.foods.filter((food) => food.id !== id)] };
+    });
+  }, [updateShared]);
 
   const deleteCustomFood = useCallback((id: string) => {
+    updateShared((current) => ({
+      ...current,
+      foods: current.foods.filter((food) => food.id !== id),
+      removedFoodIds: unique([...current.removedFoodIds, id]),
+    }));
     updateData((current) => ({
       ...current,
       customFoods: current.customFoods.filter((food) => food.id !== id),
       removedFoodIds: unique([...current.removedFoodIds, id]),
     }));
-  }, [updateData]);
+  }, [updateData, updateShared]);
 
   const tweakFood = useCallback((id: string, tweak: FoodTweak | null) => {
-    updateData((current) => {
-      const tweaks = { ...current.tweaks };
-      const removedTweakIds = current.removedTweakIds.filter((item) => item !== id);
-      if (tweak) tweaks[id] = tweak;
-      else {
-        delete tweaks[id];
-        removedTweakIds.push(id);
-      }
-      return { ...current, tweaks, removedTweakIds };
-    });
-  }, [updateData]);
+    const updatedAt = new Date().toISOString();
+    updateShared((current) => ({ ...current, tweaks: { ...current.tweaks, [id]: { ...(tweak ?? {}), updatedAt } } }));
+  }, [updateShared]);
+
+  const isTweaked = useCallback((id: string) => sharedTweakOn(book.shared, id) != null || (!book.shared.tweaks[id] && data.tweaks[id] != null), [book.shared, data.tweaks]);
+
+  useEffect(() => {
+    if (!ready) return;
+    setBook((current) => liftFoods(current));
+  }, [book, ready]);
 
   const importData = useCallback((next: AppData) => {
     updateData((current) => {
@@ -648,6 +656,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       updateCustomFood,
       deleteCustomFood,
       tweakFood,
+      isTweaked,
       importData,
     }),
     [
@@ -687,6 +696,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       updateCustomFood,
       deleteCustomFood,
       tweakFood,
+      isTweaked,
       importData,
     ],
   );

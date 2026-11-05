@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { freshData, normalizeBook } from './storage';
+import { emptyShared, freshData, normalizeBook } from './storage';
 import { mergeBooks } from './sync';
 import type { ProfileBook, ProfileRecord } from '../types';
 
@@ -11,7 +11,7 @@ function profile(id: string, name: string, updatedAt: string, logs: ProfileRecor
 }
 
 function book(profiles: ProfileRecord[], removedProfileIds: string[] = [], updatedAt = '2026-11-04T00:00:00.000Z'): ProfileBook {
-  return { version: 1, updatedAt, profiles, removedProfileIds };
+  return { version: 1, updatedAt, profiles, removedProfileIds, shared: emptyShared() };
 }
 
 const apple = {

@@ -83,6 +83,23 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
         </p>
       )}
 
+      <button type="button" className="card streak-kpi" onClick={() => onOpen('streaks')} aria-label={`Streaks: ${streaks.map((streak) => `${streak.title} ${plural(streak.days, 'day')}`).join(', ')}. Open details`}>
+        <span className="streak-kpi-icon">
+          <IconFlame />
+        </span>
+        {streaks.map((streak) => (
+          <span key={streak.id} className={streak.warn ? 'streak-kpi-item warn' : 'streak-kpi-item'}>
+            <strong>
+              {streak.days}
+              <span> {streak.days === 1 ? 'day' : 'days'}</span>
+            </strong>
+            <small>{streak.title}</small>
+          </span>
+        ))}
+      </button>
+
+      <CheatToggle />
+
       <section className="card hero">
         <div className="hero-ring">
           <Ring eaten={eaten} target={target} cheat={cheatToday} />
@@ -110,20 +127,6 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
           </div>
         </div>
       </section>
-
-      <CheatToggle />
-
-      <button type="button" className="card streak-kpi" onClick={() => onOpen('streaks')} aria-label={`Streaks: ${streaks.map((streak) => `${streak.title} ${plural(streak.days, 'day')}`).join(', ')}. Open details`}>
-        <span className="streak-kpi-icon">
-          <IconFlame />
-        </span>
-        {streaks.map((streak) => (
-          <span key={streak.id} className={streak.warn ? 'streak-kpi-item warn' : 'streak-kpi-item'}>
-            <strong>{streak.days}</strong>
-            <small>{streak.title}</small>
-          </span>
-        ))}
-      </button>
 
       <h2 className="section-title">Body and activity</h2>
       <div className="summary-grid">

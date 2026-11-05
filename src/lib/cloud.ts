@@ -1,6 +1,7 @@
 import { normalizeBook } from './storage';
 import { mergeBooks } from './sync';
 import type { ProfileBook } from '../types';
+import type { HealthFile } from './appleHealth';
 
 const REPO = 'Karthick-S4/Healthify-data';
 const FILE_URL = `https://api.github.com/repos/${REPO}/contents/diary.json`;
@@ -98,6 +99,45 @@ async function readRemote(key: string): Promise<Remote | null> {
     content = ((await blob.json()) as { content: string }).content;
   }
   return { book: content ? normalizeBook(JSON.parse(fromBase64(content))) : null, sha: file.sha };
+}
+
+async function readFileText(url: string, key: string): Promise<string | null> {
+  const response = await send(url, key);
+  if (!response?.ok) return null;
+  const file = (await response.json()) as { content?: string; git_url?: string };
+  let content = file.content ?? '';
+  if (!content && file.git_url) {
+    const blob = await send(file.git_url, key);
+    if (!blob?.ok) return null;
+    content = ((await blob.json()) as { content: string }).content;
+  }
+  return content ? fromBase64(content) : null;
+}
+
+export async function pullHealthFiles(skip: Set<string>, limit = 20): Promise<HealthFile[]> {
+  const key = readSyncKey();
+  if (!key) return [];
+  const listing = await send(`https://api.github.com/repos/${REPO}/contents/health`, key);
+  if (!listing?.ok) return [];
+  const entries = (await listing.json()) as { name: string; type: string; url: string }[];
+  if (!Array.isArray(entries)) return [];
+  const fresh = entries
+    .filter((entry) => entry.type === 'file' && entry.name.toLocaleLowerCase().endsWith('.json') && !skip.has(entry.name))
+    .sort((a, b) => (a.name < b.name ? -1 : 1))
+    .slice(0, limit);
+  const files: HealthFile[] = [];
+  for (const entry of fresh) {
+    const text = await readFileText(entry.url, key);
+    if (text === null) continue;
+    let body: unknown = null;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      body = null;
+    }
+    files.push({ name: entry.name, body });
+  }
+  return files;
 }
 
 export async function pullDiary(): Promise<PullResult> {

@@ -47,7 +47,18 @@ export type ActivityEntry = {
   date: string;
   name: string;
   minutes: number;
+  steps?: number;
+  kcal?: number;
+  source?: 'apple';
   createdAt: string;
+};
+
+export type HealthDay = {
+  steps: number;
+  activeKcal: number;
+  exerciseMin: number;
+  standMin: number;
+  updatedAt: string;
 };
 
 export type CheatDay = {
@@ -112,6 +123,8 @@ export type AppData = {
   weights: WeightEntry[];
   measures: MeasureEntry[];
   activities: ActivityEntry[];
+  health: Record<string, HealthDay>;
+  healthFiles: string[];
   cheatDays: CheatDay[];
   customIdeas: MealIdea[];
   hiddenIdeas: HiddenIdea[];

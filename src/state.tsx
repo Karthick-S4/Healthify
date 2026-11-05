@@ -1,6 +1,7 @@
 import { newId } from './lib/id';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { captureLinkKey, deviceLink, pullDiary, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
+import { applyHealthFiles, importedHealthFiles } from './lib/appleHealth';
+import { captureLinkKey, deviceLink, pullDiary, pullHealthFiles, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods, sharedTweakOn } from './lib/foods';
 import { FIRST_DAY, freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
@@ -37,6 +38,7 @@ type HealthApi = {
   loading: boolean;
   syncError: boolean;
   sync: SyncStatus;
+  healthIssue: boolean;
   connect: (key: string) => Promise<SyncStatus>;
   disconnect: () => void;
   linkForDevice: () => string | null;
@@ -148,6 +150,8 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const activeRef = useRef(activeId);
   const queue = useRef(Promise.resolve());
   const mirror = useRef<ProfileBook | null>(null);
+  const healthSkip = useRef(new Set<string>());
+  const [healthIssue, setHealthIssue] = useState(false);
   const seen = useRef<string | null>(null);
   if (seen.current === null) seen.current = JSON.stringify(normalizeBook(book));
   bookRef.current = book;
@@ -171,6 +175,14 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       const next = mergeBooks(remote, current);
       return booksEqual(next, current) ? current : next;
     });
+    const skip = new Set([...importedHealthFiles(merged), ...healthSkip.current]);
+    const files = await pullHealthFiles(skip);
+    if (files.length > 0) {
+      const { unmatched } = applyHealthFiles(merged, files);
+      for (const name of unmatched) healthSkip.current.add(name);
+      setHealthIssue(unmatched.length > 0);
+      setBook((current) => applyHealthFiles(current, files).book);
+    }
     return 'ok';
   }, []);
 
@@ -624,6 +636,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       loading: !ready,
       syncError,
       sync,
+      healthIssue,
       connect,
       disconnect,
       linkForDevice,
@@ -666,6 +679,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       ready,
       syncError,
       sync,
+      healthIssue,
       connect,
       disconnect,
       linkForDevice,

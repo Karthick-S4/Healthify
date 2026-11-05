@@ -50,6 +50,7 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
   const { start } = weekRange(today);
   const weekMinutes = data.activities.filter((entry) => entry.date >= start && entry.date <= today).reduce((sum, entry) => sum + entry.minutes, 0);
   const todayMinutes = data.activities.filter((entry) => entry.date === today).reduce((sum, entry) => sum + entry.minutes, 0);
+  const todaySteps = data.health[today]?.steps ?? 0;
 
   const parts = useMemo(() => {
     const latest = new Map<string, { part: string; cm: number; first: number; date: string }>();
@@ -147,6 +148,7 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
             <span> min this week</span>
           </p>
           <p className="note">{todayMinutes > 0 ? `${plural(todayMinutes, 'minute')} today` : 'Nothing logged today yet.'}</p>
+          {todaySteps > 0 && <p className="note">{formatKcal(todaySteps)} steps today</p>}
         </button>
 
         <button type="button" className="card tile" onClick={() => onOpen('body')}>

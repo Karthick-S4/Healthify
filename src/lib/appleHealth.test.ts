@@ -1,0 +1,94 @@
+import { describe, expect, it } from 'vitest';
+import { applyHealthFiles, healthNumber, readHealthFile } from './appleHealth';
+import { freshData, normalizeBook } from './storage';
+
+const WATCH = 'Niv’s Apple Watch';
+const PHONE = 'Niv’s iPhone';
+
+function steps(value: string, start: string, end: string, src = WATCH) {
+  return { k: 'steps', v: value, u: 'count', s: `2026-11-05T${start}:00+05:30`, e: `2026-11-05T${end}:00+05:30`, src };
+}
+
+function walk(start: string, end: string, n = 'Outdoor Walk') {
+  return { k: 'workout', v: '', u: '', s: `2026-11-05T${start}:00+05:30`, e: `2026-11-05T${end}:00+05:30`, src: WATCH, n };
+}
+
+function bookWith(name: string) {
+  return normalizeBook({
+    version: 1,
+    updatedAt: '2026-11-05T00:00:00.000Z',
+    profiles: [{ id: 'p1', name, updatedAt: '2026-11-05T00:00:00.000Z', data: freshData() }],
+    removedProfileIds: [],
+  });
+}
+
+describe('apple health import', () => {
+  it('reads numbers written the way the phone shows them', () => {
+    expect(healthNumber('1,234')).toBe(1234);
+    expect(healthNumber('12,5')).toBe(12.5);
+    expect(healthNumber('1.234,5')).toBe(1234.5);
+    expect(healthNumber('35.2 kcal')).toBe(35.2);
+    expect(healthNumber('')).toBeNull();
+  });
+
+  it('drops repeated samples and does not count phone and watch twice', () => {
+    const result = readHealthFile({
+      profile: 'Niv',
+      samples: [
+        steps('500', '07:00', '07:10'),
+        steps('500', '07:00', '07:10'),
+        steps('300', '07:10', '07:20'),
+        steps('760', '07:00', '07:20', PHONE),
+        steps('200', '20:00', '20:10', PHONE),
+      ],
+    });
+    expect(result.days['2026-11-05'].steps).toBe(1000);
+  });
+
+  it('adds up calories, converting kilojoules, and minutes', () => {
+    const result = readHealthFile({
+      profile: 'Niv',
+      samples: [
+        { k: 'energy', v: '41.84', u: 'kJ', s: '2026-11-05T07:00:00+05:30', e: '2026-11-05T07:05:00+05:30', src: WATCH },
+        { k: 'Active Energy', v: '20', u: 'kcal', s: '2026-11-05T08:00:00+05:30', e: '2026-11-05T08:05:00+05:30', src: WATCH },
+        { k: 'exercise', v: '12', u: 'min', s: '2026-11-05T07:00:00+05:30', e: '2026-11-05T07:12:00+05:30', src: WATCH },
+        { k: 'stand', v: '300', u: 's', s: '2026-11-05T09:00:00+05:30', e: '2026-11-05T09:05:00+05:30', src: WATCH },
+      ],
+    });
+    expect(result.days['2026-11-05']).toEqual({ steps: 0, activeKcal: 30, exerciseMin: 12, standMin: 5 });
+  });
+
+  it('counts only the steps inside each walk', () => {
+    const result = readHealthFile({
+      profile: 'Niv',
+      samples: [walk('07:00', '07:30'), walk('07:00', '07:30'), steps('1200', '06:50', '07:10'), steps('2000', '07:10', '07:30'), steps('900', '12:00', '12:10')],
+    });
+    expect(result.workouts).toHaveLength(1);
+    expect(result.workouts[0]).toMatchObject({ name: 'Outdoor Walk', minutes: 30, steps: 2600 });
+    expect(result.days['2026-11-05'].steps).toBe(4100);
+  });
+
+  it('adds walks to the right profile once and keeps the biggest totals', () => {
+    const file = { name: '20261105-210000.json', body: { profile: 'niv', samples: [walk('07:00', '07:30'), steps('2000', '07:00', '07:30')] } };
+    const later = { name: '20261105-230000.json', body: { profile: 'Niv', samples: [walk('07:00', '07:30'), steps('2000', '07:00', '07:30'), steps('800', '18:00', '18:10')] } };
+    const first = applyHealthFiles(bookWith('Niv'), [file], '2026-11-05T15:30:00.000Z').book;
+    const again = applyHealthFiles(first, [file, later], '2026-11-05T17:30:00.000Z').book;
+    const data = again.profiles[0].data;
+    expect(data.activities).toHaveLength(1);
+    expect(data.activities[0]).toMatchObject({ name: 'Outdoor Walk', minutes: 30, steps: 2000, source: 'apple' });
+    expect(data.health['2026-11-05'].steps).toBe(2800);
+    expect(data.healthFiles).toEqual([file.name, later.name]);
+  });
+
+  it('does not bring back a walk she deleted, and reports unknown profiles', () => {
+    const book = bookWith('Niv');
+    const removed = { ...book, profiles: book.profiles.map((profile) => ({ ...profile, data: { ...profile.data, removedLogIds: [`apple-${new Date('2026-11-05T07:00:00+05:30').toISOString()}`] } })) };
+    const out = applyHealthFiles(removed, [
+      { name: 'a.json', body: { profile: 'Niv', samples: [walk('07:00', '07:30')] } },
+      { name: 'b.json', body: { profile: 'Somebody', samples: [walk('09:00', '09:30')] } },
+      { name: 'c.json', body: null },
+    ]);
+    expect(out.book.profiles[0].data.activities).toHaveLength(0);
+    expect(out.unmatched).toEqual(['b.json', 'c.json']);
+  });
+});

@@ -1,5 +1,5 @@
 import { emptyShared, normalizeBook } from './storage';
-import type { AppData, Food, LogEntry, ProfileBook, ProfileRecord, SharedFoods, SharedTweak } from '../types';
+import type { AppData, Food, HealthDay, LogEntry, ProfileBook, ProfileRecord, SharedFoods, SharedTweak } from '../types';
 
 function time(value: string): number {
   const parsed = Date.parse(value);
@@ -31,6 +31,19 @@ function mergeData(older: AppData, newer: AppData): AppData {
   };
   const tweaks = { ...older.tweaks, ...newer.tweaks };
   for (const id of removedTweakIds) delete tweaks[id];
+  const health: Record<string, HealthDay> = { ...(older.health ?? {}) };
+  for (const [day, next] of Object.entries(newer.health ?? {})) {
+    const kept = health[day];
+    health[day] = kept
+      ? {
+          steps: Math.max(kept.steps, next.steps),
+          activeKcal: Math.max(kept.activeKcal, next.activeKcal),
+          exerciseMin: Math.max(kept.exerciseMin, next.exerciseMin),
+          standMin: Math.max(kept.standMin, next.standMin),
+          updatedAt: time(next.updatedAt) >= time(kept.updatedAt) ? next.updatedAt : kept.updatedAt,
+        }
+      : next;
+  }
   return {
     version: 1,
     pinHash: null,
@@ -42,6 +55,8 @@ function mergeData(older: AppData, newer: AppData): AppData {
     weights: byId(older.weights, newer.weights),
     measures: byId(older.measures, newer.measures),
     activities: byId(older.activities, newer.activities),
+    health,
+    healthFiles: unique([...(older.healthFiles ?? []), ...(newer.healthFiles ?? [])]).slice(-400),
     cheatDays: byId(older.cheatDays, newer.cheatDays),
     customIdeas: byId(older.customIdeas, newer.customIdeas),
     hiddenIdeas: byId(older.hiddenIdeas, newer.hiddenIdeas),

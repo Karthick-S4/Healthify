@@ -6,6 +6,7 @@ import type {
   CustomRange,
   Food,
   FoodTweak,
+  HealthDay,
   HiddenIdea,
   LogEntry,
   MealIdea,
@@ -38,6 +39,8 @@ export function freshData(): AppData {
     weights: [],
     measures: [],
     activities: [],
+    health: {},
+    healthFiles: [],
     cheatDays: [],
     customIdeas: [],
     hiddenIdeas: [],
@@ -99,7 +102,35 @@ function asActivity(value: unknown): ActivityEntry | null {
   const base = entryBase(value);
   if (!base || typeof base.raw.name !== 'string' || !base.raw.name.trim()) return null;
   if (typeof base.raw.minutes !== 'number' || !Number.isFinite(base.raw.minutes) || base.raw.minutes <= 0) return null;
-  return { id: base.id, date: base.date, name: base.raw.name.trim().slice(0, 40), minutes: Math.round(base.raw.minutes), createdAt: base.createdAt };
+  const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? Math.round(value) : undefined);
+  return {
+    id: base.id,
+    date: base.date,
+    name: base.raw.name.trim().slice(0, 40),
+    minutes: Math.round(base.raw.minutes),
+    ...(count(base.raw.steps) ? { steps: count(base.raw.steps) } : {}),
+    ...(count(base.raw.kcal) ? { kcal: count(base.raw.kcal) } : {}),
+    ...(base.raw.source === 'apple' ? { source: 'apple' as const } : {}),
+    createdAt: base.createdAt,
+  };
+}
+
+function asHealthDays(value: unknown): Record<string, HealthDay> {
+  const days: Record<string, HealthDay> = {};
+  if (!value || typeof value !== 'object') return days;
+  const amount = (raw: unknown) => (typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? Math.round(raw) : 0);
+  for (const [iso, raw] of Object.entries(value as Record<string, unknown>)) {
+    if (!ISO_DATE.test(iso) || !raw || typeof raw !== 'object') continue;
+    const day = raw as Record<string, unknown>;
+    days[iso] = {
+      steps: amount(day.steps),
+      activeKcal: amount(day.activeKcal),
+      exerciseMin: amount(day.exerciseMin),
+      standMin: amount(day.standMin),
+      updatedAt: typeof day.updatedAt === 'string' ? day.updatedAt : new Date(0).toISOString(),
+    };
+  }
+  return days;
 }
 
 function listOf<T>(value: unknown, read: (item: unknown) => T | null): T[] {
@@ -276,6 +307,8 @@ export function normalizeData(value: unknown): AppData {
     weights: listOf(data.weights, asWeight),
     measures: listOf(data.measures, asMeasure),
     activities: listOf(data.activities, asActivity),
+    health: asHealthDays(data.health),
+    healthFiles: asIds(data.healthFiles),
     cheatDays: listOf(data.cheatDays, asCheatDay),
     customIdeas: listOf(data.customIdeas, asMealIdea),
     hiddenIdeas: listOf(data.hiddenIdeas, asHiddenIdea),

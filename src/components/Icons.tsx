@@ -62,6 +62,15 @@ export function IconBody() {
   );
 }
 
+export function IconFlame() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.5-5.6 3.8-8.8.4 2 1.4 3.2 2.6 3.9.2-2.6 1.3-4.9 3.4-6.4-.3 3.5 3.2 5.6 3.2 10.5 0 4.1-2.7 7-6.5 7z" {...stroke} />
+      <path d="M12 21c-1.7 0-2.9-1.2-2.9-2.9 0-1.6 1.2-2.6 2.1-4 .9 1.1 3.7 2.3 3.7 4.2 0 1.6-1.2 2.7-2.9 2.7z" {...stroke} />
+    </svg>
+  );
+}
+
 export function IconBack() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">

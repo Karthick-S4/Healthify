@@ -34,7 +34,7 @@ export function captureLinkKey() {
   const key = params.get(LINK_PARAM);
   if (!key) return;
   saveSyncKey(key);
-  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
 }
 
 export function deviceLink(key: string, profile: string | null = null): string {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { IconBack, IconBody, IconFood, IconMore, IconMove, IconSummary } from './components/Icons';
 import { HealthProvider, useHealth } from './state';
 import { ActivityView } from './views/ActivityView';
@@ -8,11 +8,13 @@ import { IdeasView } from './views/IdeasView';
 import { LockView } from './views/LockView';
 import { MoreView } from './views/MoreView';
 import { PeriodView } from './views/PeriodView';
+import { StreaksView } from './views/StreaksView';
 import { SummaryView } from './views/SummaryView';
 import { TodayView } from './views/TodayView';
 
 type Tab = 'summary' | 'food' | 'move' | 'body' | 'more';
-type View = Tab | 'period' | 'ideas';
+type SubView = 'period' | 'ideas' | 'streaks';
+type View = Tab | SubView;
 
 const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'summary', label: 'Summary', icon: <IconSummary /> },
@@ -22,19 +24,61 @@ const TABS: { id: Tab; label: string; icon: ReactNode }[] = [
   { id: 'more', label: 'More', icon: <IconMore /> },
 ];
 
-const PARENT: Record<'period' | 'ideas', Tab> = { period: 'summary', ideas: 'food' };
+const PARENT: Record<SubView, Tab> = { period: 'summary', ideas: 'food', streaks: 'summary' };
+const VIEWS = new Set<string>(['summary', 'food', 'move', 'body', 'more', 'period', 'ideas', 'streaks']);
+
+function isSubView(view: View): view is SubView {
+  return view in PARENT;
+}
+
+function asView(value: unknown): View | null {
+  return typeof value === 'string' && VIEWS.has(value) ? (value as View) : null;
+}
 
 function Shell() {
   const health = useHealth();
-  const [view, setView] = useState<View>('summary');
+  const [view, setShown] = useState<View>('summary');
+  const viewRef = useRef<View>(view);
   const [updateReady, setUpdateReady] = useState(false);
   const [typing, setTyping] = useState(false);
   const goalSet = health.data.profile.goalSet;
-  const tab: Tab = view === 'period' || view === 'ideas' ? PARENT[view] : view;
+  const tab: Tab = isSubView(view) ? PARENT[view] : view;
+
+  const show = useCallback((next: View) => {
+    viewRef.current = next;
+    setShown(next);
+  }, []);
+
+  const setView = useCallback(
+    (next: View) => {
+      const current = viewRef.current;
+      if (next === current) return;
+      window.history.pushState({ ...(window.history.state ?? {}), view: next, prev: current }, '');
+      show(next);
+    },
+    [show],
+  );
+
+  const goBack = useCallback(
+    (parent: Tab) => {
+      if (window.history.state?.prev === parent) window.history.back();
+      else setView(parent);
+    },
+    [setView],
+  );
 
   useEffect(() => {
-    if (goalSet) setView('summary');
-  }, [health.profileId, goalSet]);
+    window.history.replaceState({ ...(window.history.state ?? {}), view: viewRef.current, prev: null }, '');
+    const onPop = (event: PopStateEvent) => show(asView((event.state as { view?: unknown } | null)?.view) ?? 'summary');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [show]);
+
+  useEffect(() => {
+    if (!goalSet) return;
+    show('summary');
+    window.history.replaceState({ ...(window.history.state ?? {}), view: 'summary', prev: null }, '');
+  }, [health.profileId, goalSet, show]);
 
   useEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0 });
@@ -98,7 +142,7 @@ function Shell() {
   if (!health.profileId) return <LockView />;
   if (!health.data.profile.goalSet) return <GoalView />;
 
-  const back = view === 'period' || view === 'ideas' ? PARENT[view] : null;
+  const back = isSubView(view) ? PARENT[view] : null;
 
   return (
     <div className={typing ? 'shell typing' : 'shell'}>
@@ -113,7 +157,7 @@ function Shell() {
       <main>
         {back && (
           <div className="back-row">
-            <button type="button" className="back-button" onClick={() => setView(back)}>
+            <button type="button" className="back-button" onClick={() => goBack(back)}>
               <IconBack />
               {back === 'summary' ? 'Summary' : 'Food'}
             </button>
@@ -126,6 +170,7 @@ function Shell() {
         {view === 'period' && <PeriodView onOpenMore={() => setView('more')} />}
         {view === 'ideas' && <IdeasView onOpenMore={() => setView('more')} />}
         {view === 'more' && <MoreView />}
+        {view === 'streaks' && <StreaksView />}
       </main>
       <div className="dock">
         {health.undo && (

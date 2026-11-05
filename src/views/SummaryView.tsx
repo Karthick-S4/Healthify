@@ -1,30 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { CheatToggle } from '../components/CheatToggle';
-import { IconBack } from '../components/Icons';
+import { IconFlame } from '../components/Icons';
 import { Ring } from '../components/Ring';
 import { TrendChart } from '../components/TrendChart';
-import { StarIcon, WeekStars, weekDone } from '../components/WeekStars';
 import { targetForDay } from '../lib/budget';
-import { addDays, formatLong, formatRange, formatShort, todayISO, weekRange } from '../lib/dates';
+import { addDays, formatLong, formatShort, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { measureRank } from '../lib/measures';
-import {
-  activityDay,
-  activityStreak,
-  cheatDates,
-  withCheat,
-  homeDay,
-  homeStreak,
-  onTargetDay,
-  onTargetStreak,
-  weekMarks,
-  type DayResult,
-  type WeekMark,
-} from '../lib/streaks';
+import { cheatDates } from '../lib/streaks';
 import { useHealth } from '../state';
+import { useStreaks } from './StreaksView';
 
 type SummaryViewProps = {
-  onOpen: (view: 'food' | 'move' | 'body' | 'period' | 'more') => void;
+  onOpen: (view: 'food' | 'move' | 'body' | 'period' | 'more' | 'streaks') => void;
 };
 
 function greeting(hour: number): string {
@@ -43,60 +31,6 @@ function signed(value: number, unit: string): string {
   return `${rounded > 0 ? '+' : '−'}${Math.abs(rounded)} ${unit}`;
 }
 
-type StreakCardProps = {
-  title: string;
-  days: number;
-  note: string;
-  warn: boolean;
-  result: (iso: string) => DayResult;
-  today: string;
-};
-
-function longestRun(marks: { mark: WeekMark }[]): number {
-  let best = 0;
-  let run = 0;
-  for (const { mark } of marks) {
-    if (mark === 'cheat') continue;
-    run = mark === 'done' ? run + 1 : 0;
-    best = Math.max(best, run);
-  }
-  return best;
-}
-
-function StreakCard({ title, days, note, warn, result, today }: StreakCardProps) {
-  const [week, setWeek] = useState(today);
-  const shown = weekRange(week);
-  const thisWeek = shown.start === weekRange(today).start;
-  const marks = weekMarks(today, result, 'skipped', week);
-  const count = thisWeek ? days : longestRun(marks);
-
-  return (
-    <section className={thisWeek && warn ? 'card streak-card warn' : 'card streak-card'}>
-      <div className="streak-head">
-        <p className="eyebrow">{title}</p>
-        <div className="week-nav">
-          <button type="button" aria-label={`${title}, previous week`} onClick={() => setWeek(addDays(shown.start, -7))}>
-            <IconBack />
-          </button>
-          <span>{thisWeek ? 'This week' : formatRange(shown.start, shown.end)}</span>
-          <button type="button" aria-label={`${title}, next week`} disabled={thisWeek} onClick={() => setWeek(addDays(shown.start, 7))}>
-            <IconBack />
-          </button>
-        </div>
-      </div>
-      <p className="streak-num">
-        {count}
-        <span> {count === 1 ? 'day' : 'days'} in a row</span>
-      </p>
-      <p className="note">
-        {thisWeek ? note : `Longest run that week. ${weekDone(marks)} of 7 days done.`}
-      </p>
-      <WeekStars marks={marks} />
-      {thisWeek && <p className="streak-week">{weekDone(marks)} of 7 this week</p>}
-    </section>
-  );
-}
-
 export function SummaryView({ onOpen }: SummaryViewProps) {
   const health = useHealth();
   const data = health.data;
@@ -104,16 +38,8 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
   const target = targetForDay(data, today);
   const eaten = data.logs.filter((log) => log.date === today).reduce((sum, log) => sum + log.kcal, 0);
 
-  const cheat = useMemo(() => cheatDates(data.cheatDays), [data.cheatDays]);
-  const cheatToday = cheat.has(today);
-  const streaks = useMemo(
-    () => ({
-      onTarget: onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso), cheat),
-      home: homeStreak(data.logs, today, cheat),
-      move: activityStreak(data.activities, today, cheat),
-    }),
-    [data, today, cheat],
-  );
+  const cheatToday = useMemo(() => cheatDates(data.cheatDays), [data.cheatDays]).has(today);
+  const streaks = useStreaks();
 
   const weights = useMemo(() => [...data.weights].sort((a, b) => (a.date < b.date ? -1 : 1)), [data.weights]);
   const latestWeight = weights[weights.length - 1];
@@ -135,55 +61,6 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
     }
     return [...latest.values()].sort((a, b) => measureRank(a.part) - measureRank(b.part));
   }, [data.measures]);
-
-  const targetOver = streaks.onTarget.today === 'over';
-  const streakCards: (StreakCardProps & { key: string })[] = [
-    {
-      key: 'target',
-      title: 'On target',
-      days: streaks.onTarget.days,
-      note: cheatToday
-        ? 'Cheat day today. The streak is safe.'
-        : targetOver
-          ? 'Over today’s target, so the count starts again tomorrow.'
-          : 'Days in a row at or under your calorie target.',
-      warn: targetOver,
-      result: withCheat(cheat, (iso) => {
-        const day = onTargetDay(data.logs, iso, targetForDay(data, iso));
-        return iso === today && day === 'done' ? 'empty' : day;
-      }),
-      today,
-    },
-    {
-      key: 'home',
-      title: 'Home meals',
-      days: streaks.home.days,
-      note: cheatToday
-        ? 'Cheat day today. Eating out won’t break it.'
-        : streaks.home.brokeToday
-          ? 'Ate out today, so the count starts again tomorrow.'
-          : 'Days in a row with only home food.',
-      warn: streaks.home.brokeToday,
-      result: withCheat(cheat, (iso) => {
-        const day = homeDay(data.logs, iso);
-        return iso === today && day === 'done' ? 'empty' : day;
-      }),
-      today,
-    },
-    {
-      key: 'move',
-      title: 'Activity',
-      days: streaks.move.days,
-      note: cheatToday
-        ? 'Cheat day today. A rest day won’t break it.'
-        : !streaks.move.doneToday && streaks.move.days > 0
-          ? 'Add an activity today to keep it going.'
-          : 'Days in a row with any activity.',
-      warn: false,
-      result: withCheat(cheat, (iso) => activityDay(data.activities, iso)),
-      today,
-    },
-  ];
 
   return (
     <div className="page summary-page">
@@ -236,34 +113,17 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
 
       <CheatToggle />
 
-      <h2 className="section-title">Streaks</h2>
-      <div className="streak-grid">
-        {streakCards.map(({ key, ...card }) => (
-          <StreakCard key={key} {...card} />
+      <button type="button" className="card streak-kpi" onClick={() => onOpen('streaks')} aria-label={`Streaks: ${streaks.map((streak) => `${streak.title} ${plural(streak.days, 'day')}`).join(', ')}. Open details`}>
+        <span className="streak-kpi-icon">
+          <IconFlame />
+        </span>
+        {streaks.map((streak) => (
+          <span key={streak.id} className={streak.warn ? 'streak-kpi-item warn' : 'streak-kpi-item'}>
+            <strong>{streak.days}</strong>
+            <small>{streak.title}</small>
+          </span>
         ))}
-      </div>
-      <p className="star-legend">
-        <span className="star-day done">
-          <StarIcon />
-        </span>
-        done
-        <span className="star-day open">
-          <StarIcon />
-        </span>
-        today, not yet
-        <span className="star-day missed">
-          <StarIcon mark="missed" />
-        </span>
-        missed
-        <span className="star-day cheat">
-          <StarIcon mark="cheat" />
-        </span>
-        cheat day
-        <span className="star-day skipped">
-          <StarIcon mark="skipped" />
-        </span>
-        nothing logged
-      </p>
+      </button>
 
       <h2 className="section-title">Body and activity</h2>
       <div className="summary-grid">

@@ -782,6 +782,30 @@ input[type='date'] { min-height: 50px; }
 .hero-copy .composer-actions button { flex: 1; min-height: 42px; padding: 0 12px; white-space: nowrap; }
 
 .streak-grid, .summary-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+button.streak-kpi {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+}
+.streak-kpi-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--glass-soft);
+  color: var(--accent-ink);
+}
+.streak-kpi-icon svg { width: 28px; height: 28px; }
+.streak-kpi-item { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.streak-kpi-item strong { font-family: var(--rounded); font-size: 1.7rem; font-weight: 800; line-height: 1; color: var(--ink); }
+.streak-kpi-item small { font-size: 0.72rem; font-weight: 650; color: var(--muted); line-height: 1.2; }
+.streak-kpi-item.warn strong { color: var(--alert-ink); }
 .streak-card { gap: 8px; }
 .card.streak-card.warn p.note { color: var(--alert-ink); font-weight: 650; }
 .range-list { display: flex; flex-direction: column; gap: 8px; }

@@ -112,7 +112,7 @@ function writeUrlProfile(name: string | null) {
   if (name) url.searchParams.set(PROFILE_PARAM, name);
   else url.searchParams.delete(PROFILE_PARAM);
   const next = url.pathname + url.search + url.hash;
-  if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(null, '', next);
+  if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(window.history.state, '', next);
 }
 
 function profileNamed(book: ProfileBook, name: string | null): ProfileRecord | undefined {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { IconBack } from '../components/Icons';
 import { MealEditor } from '../components/MealEditor';
+import { MealGroups } from '../components/MealGroups';
 import { buildReports, pickRange, planOn, targetForDay } from '../lib/budget';
 import { addDays, addMonths, eachDate, formatLong, formatRange, parseISO, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
@@ -210,19 +211,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
               {selectedLogs.length === 0 ? (
                 <p className="empty">{selected > today ? 'This day hasn’t come yet.' : 'Nothing logged this day.'}</p>
               ) : (
-                <ul className="meal-list">
-                  {selectedLogs.map((log) => (
-                    <li key={log.id}>
-                      <button type="button" className="meal" onClick={() => setEditing(log)}>
-                        <span>
-                          <strong>{log.title}</strong>
-                          {log.outside && <em className="tag">Outside</em>}
-                        </span>
-                        <b>{formatKcal(log.kcal)}</b>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <MealGroups logs={selectedLogs} onOpen={setEditing} />
               )}
             </section>
           </div>

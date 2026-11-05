@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CheatToggle } from '../components/CheatToggle';
 import { MealEditor } from '../components/MealEditor';
+import { MealGroups } from '../components/MealGroups';
 import { MealPicker } from '../components/MealPicker';
 import { Ring } from '../components/Ring';
 import { buildReports, targetForDay, tightestRoom, type RoomReport } from '../lib/budget';
@@ -10,7 +11,7 @@ import { closeFoods, correctQuery, kcalFor, searchFoods, suggestedGrams } from '
 import { lookupCalories, type FoodLookup } from '../lib/lookupFood';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
 import { cheatDates, homeStreak, onTargetStreak, type OnTargetStreak } from '../lib/streaks';
-import { KIND_LABEL, MEAL_LABEL, MEAL_SLOTS, mixedIdeas, slotForHour, suggestMeals } from '../lib/suggestions';
+import { KIND_LABEL, mixedIdeas, slotForHour, suggestMeals } from '../lib/suggestions';
 import { useHealth } from '../state';
 import type { Food, LogEntry, MealSlot } from '../types';
 
@@ -90,11 +91,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
   const tight = useMemo(() => tightestRoom(health.data, today), [health.data, today]);
   const day = picked > today ? today : picked;
   const pastDay = day !== today;
-  const dayLogs = health.data.logs.filter((log) => log.date === day).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const mealGroups = [...MEAL_SLOTS, null].flatMap((slot) => {
-    const items = dayLogs.filter((log) => (log.meal ?? null) === slot);
-    return items.length === 0 ? [] : [{ slot, items, kcal: items.reduce((sum, log) => sum + log.kcal, 0) }];
-  });
+  const dayLogs = health.data.logs.filter((log) => log.date === day);
   const target = targetForDay(health.data, today);
   const eaten = reports.day.eaten;
   const cheat = cheatDates(health.data.cheatDays);
@@ -591,27 +588,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         {dayLogs.length === 0 ? (
           <p className="empty">{pastDay ? 'Nothing logged on this day. Add it above if you forgot.' : 'Nothing logged yet. Type the food, then the grams or ml beside it.'}</p>
         ) : (
-          mealGroups.map((group) => (
-            <div key={group.slot ?? 'other'} className="meal-group">
-              <p className="meal-group-head">
-                <span>{group.slot ? MEAL_LABEL[group.slot] : 'Other'}</span>
-                <span>{formatKcal(group.kcal)} kcal</span>
-              </p>
-              <ul className="meal-list">
-                {group.items.map((log) => (
-                  <li key={log.id}>
-                    <button type="button" className="meal" onClick={() => setEditing(log)}>
-                      <span>
-                        <strong>{log.title}</strong>
-                        {log.outside && <em className="tag">Outside</em>}
-                      </span>
-                      <b>{formatKcal(log.kcal)}</b>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))
+          <MealGroups logs={dayLogs} onOpen={setEditing} />
         )}
       </section>
 

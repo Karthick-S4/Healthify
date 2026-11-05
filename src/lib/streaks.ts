@@ -135,14 +135,11 @@ export function homeStreak(
   const days = grouped(logs);
   const todayLogs = days.get(today) ?? [];
   if (!cheat.has(today) && todayLogs.some((log) => log.outside)) return { days: 0, brokeToday: true };
-  if (logs.length === 0) return { days: 0, brokeToday: false };
 
-  const earliest = logs.reduce((min, log) => (log.date < min ? log.date : min), logs[0].date);
   let count = 0;
-  for (let cursor = todayLogs.length > 0 ? today : addDays(today, -1); cursor >= earliest; cursor = addDays(cursor, -1)) {
+  for (let cursor = addDays(today, -1), guard = 0; guard < 800; cursor = addDays(cursor, -1), guard += 1) {
     const entries = days.get(cursor) ?? [];
-    if (entries.length === 0) continue;
-    if (entries.some((log) => log.outside)) {
+    if (entries.length === 0 || entries.some((log) => log.outside)) {
       if (cheat.has(cursor)) continue;
       break;
     }

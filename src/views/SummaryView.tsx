@@ -164,7 +164,10 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
           ? 'Ate out today, so the count starts again tomorrow.'
           : 'Days in a row with only home food.',
       warn: streaks.home.brokeToday,
-      result: withCheat(cheat, (iso) => homeDay(data.logs, iso)),
+      result: withCheat(cheat, (iso) => {
+        const day = homeDay(data.logs, iso);
+        return iso === today && day === 'done' ? 'empty' : day;
+      }),
       today,
     },
     {

@@ -39,8 +39,8 @@ describe('cheat day', () => {
   });
 
   it('still counts a cheat day that would have kept the streak anyway', () => {
-    const logs = [meal('2026-11-03', 1200), meal('2026-11-04', 900)];
-    expect(homeStreak(logs, '2026-11-04', new Set(['2026-11-04']))).toEqual({ days: 2, brokeToday: false });
+    const logs = [meal('2026-11-02', 1200), meal('2026-11-03', 900)];
+    expect(homeStreak(logs, '2026-11-04', new Set(['2026-11-03']))).toEqual({ days: 2, brokeToday: false });
     expect(onTargetStreak([meal('2026-11-02', 1000), meal('2026-11-03', 1200)], '2026-11-04', target, new Set(['2026-11-03'])).days).toBe(2);
   });
 

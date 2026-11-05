@@ -50,13 +50,18 @@ describe('streaks', () => {
     expect(onTargetStreak(over, '2026-11-04', target).days).toBe(1);
   });
 
-  it('resets the home streak on outside food and skips empty days', () => {
+  it('counts only finished all-home days for the home streak', () => {
     const logs = [
       log({ date: '2026-11-01', kcal: 500 }),
-      log({ date: '2026-11-03', kcal: 500, outside: true }),
+      log({ date: '2026-11-02', kcal: 500 }),
+      log({ date: '2026-11-03', kcal: 500 }),
       log({ date: '2026-11-04', kcal: 400 }),
     ];
-    expect(homeStreak(logs, '2026-11-04')).toEqual({ days: 1, brokeToday: false });
+    expect(homeStreak(logs, '2026-11-04')).toEqual({ days: 3, brokeToday: false });
+    expect(homeStreak(logs.filter((entry) => entry.date !== '2026-11-04'), '2026-11-04')).toEqual({ days: 3, brokeToday: false });
+    expect(homeStreak([...logs, log({ date: '2026-11-02', kcal: 300, outside: true })], '2026-11-04').days).toBe(1);
+    expect(homeStreak(logs.filter((entry) => entry.date !== '2026-11-02'), '2026-11-04').days).toBe(1);
+    expect(homeStreak([], '2026-11-04')).toEqual({ days: 0, brokeToday: false });
     expect(homeStreak([...logs, log({ date: '2026-11-04', kcal: 100, outside: true })], '2026-11-04')).toEqual({
       days: 0,
       brokeToday: true,

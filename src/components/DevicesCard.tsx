@@ -10,10 +10,12 @@ export function DevicesCard() {
 
   async function onConnect(event: FormEvent) {
     event.preventDefault();
-    if (!key.trim()) return;
+    const typed = key.trim();
+    if (!typed) return;
+    const fromLink = typed.includes('#') ? new URLSearchParams(typed.slice(typed.indexOf('#') + 1)).get('connect') : null;
     setBusy(true);
     setNote(null);
-    const status = await health.connect(key.trim());
+    const status = await health.connect((fromLink ?? typed).trim());
     setBusy(false);
     if (status === 'ok') {
       setKey('');
@@ -71,11 +73,11 @@ export function DevicesCard() {
             <p className="help">
               {health.sync === 'bad-key'
                 ? 'The saved key stopped working. Paste a new one, or open a fresh link from a connected device.'
-                : 'Meals stay on this device until it’s connected. Open the link from a connected device, or paste the GitHub key.'}
+                : 'Meals stay on this device until it’s connected. Paste the link from a connected device, or the GitHub key.'}
             </p>
           )}
           <label className="field-label" htmlFor="sync-key">
-            GitHub key
+            Link or GitHub key
           </label>
           <input
             id="sync-key"
@@ -83,7 +85,7 @@ export function DevicesCard() {
             autoCapitalize="off"
             spellCheck={false}
             value={key}
-            placeholder="github_pat_…"
+            placeholder="Paste the link or github_pat_…"
             onChange={(event) => setKey(event.target.value)}
           />
           <button className="primary" type="submit" disabled={busy || !key.trim()}>

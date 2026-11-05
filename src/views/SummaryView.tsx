@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CheatToggle } from '../components/CheatToggle';
 import { HeartMark } from '../components/Icons';
 import { BAND_NUM, Ring, ringBand } from '../components/Ring';
@@ -52,6 +52,13 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
   const todayMinutes = data.activities.filter((entry) => entry.date === today).reduce((sum, entry) => sum + entry.minutes, 0);
   const moved = data.health[today] ?? null;
   const hasHealth = Object.keys(data.health).some((iso) => iso >= addDays(today, -13));
+  const onIPhone = /iPhone/.test(navigator.userAgent);
+  const [syncing, setSyncing] = useState(false);
+  const syncMovement = async () => {
+    setSyncing(true);
+    await health.syncHealth();
+    window.setTimeout(() => setSyncing(false), onIPhone ? 4000 : 0);
+  };
 
   const parts = useMemo(() => {
     const latest = new Map<string, { part: string; cm: number; first: number; date: string }>();
@@ -124,31 +131,40 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
         </div>
       </section>
 
-      {(moved || hasHealth) && (
-        <button type="button" className="card streak-board" onClick={() => onOpen('move')}>
-          <span className="eyebrow">Today’s movement</span>
-          <span className="sr-fires">
-            <span className="mv-item">
-              <b>{formatKcal(moved?.steps ?? 0)}</b>
-              <strong>Steps</strong>
+      {(moved || hasHealth || onIPhone) && (
+        <section className="card streak-board">
+          <div className="mv-head">
+            <span className="eyebrow">Today’s movement</span>
+            <button type="button" className="ghost small" disabled={syncing} onClick={syncMovement}>
+              {syncing ? 'Syncing…' : 'Sync'}
+            </button>
+          </div>
+          <button type="button" className="mv-open" onClick={() => onOpen('move')}>
+            <span className="sr-fires">
+              <span className="mv-item">
+                <b>{formatKcal(moved?.steps ?? 0)}</b>
+                <strong>Steps</strong>
+              </span>
+              <span className="mv-item">
+                <b>
+                  {formatKcal(moved?.activeKcal ?? 0)}
+                  <small> kcal</small>
+                </b>
+                <strong>Active calories</strong>
+              </span>
+              <span className="mv-item">
+                <b>
+                  {formatHours(moved?.standMin ?? 0)}
+                  <small> {hoursWord(moved?.standMin ?? 0)}</small>
+                </b>
+                <strong>Standing</strong>
+              </span>
             </span>
-            <span className="mv-item">
-              <b>
-                {formatKcal(moved?.activeKcal ?? 0)}
-                <small> kcal</small>
-              </b>
-              <strong>Active calories</strong>
+            <span className="mv-note">
+              {moved ? `From Apple Health, updated ${formatTime(moved.updatedAt)}` : onIPhone ? 'Tap Sync to bring in today from Apple Health.' : 'Arrives when the Shortcut runs on her iPhone.'}
             </span>
-            <span className="mv-item">
-              <b>
-                {formatHours(moved?.standMin ?? 0)}
-                <small> {hoursWord(moved?.standMin ?? 0)}</small>
-              </b>
-              <strong>Standing</strong>
-            </span>
-          </span>
-          <span className="mv-note">{moved ? `From Apple Health, updated ${formatTime(moved.updatedAt)}` : 'Arrives when the Shortcut runs.'}</span>
-        </button>
+          </button>
+        </section>
       )}
 
       <h2 className="section-title">Body and activity</h2>

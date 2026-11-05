@@ -32,6 +32,8 @@ type ListedProfile = { id: string; name: string };
 type CreateResult = 'ok' | 'taken' | 'invalid';
 export type SyncStatus = 'off' | 'checking' | 'ok' | 'failed' | 'bad-key';
 
+export const HEALTH_SHORTCUT = 'NivFit Health';
+
 type HealthApi = {
   data: AppData;
   foods: Food[];
@@ -39,6 +41,7 @@ type HealthApi = {
   syncError: boolean;
   sync: SyncStatus;
   healthIssue: boolean;
+  syncHealth: () => Promise<void>;
   connect: (key: string) => Promise<SyncStatus>;
   disconnect: () => void;
   linkForDevice: () => string | null;
@@ -152,6 +155,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const mirror = useRef<ProfileBook | null>(null);
   const healthSkip = useRef(new Set<string>());
   const [healthIssue, setHealthIssue] = useState(false);
+  const awaitingShortcut = useRef(false);
   const seen = useRef<string | null>(null);
   if (seen.current === null) seen.current = JSON.stringify(normalizeBook(book));
   bookRef.current = book;
@@ -221,6 +225,23 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     [enqueue, publish, refresh],
   );
 
+  const syncHealth = useCallback(
+    () =>
+      new Promise<void>((resolve) => {
+        if (/iPhone/.test(navigator.userAgent)) {
+          awaitingShortcut.current = true;
+          window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(HEALTH_SHORTCUT)}`;
+          resolve();
+          return;
+        }
+        enqueue(async () => {
+          await refresh();
+          resolve();
+        });
+      }),
+    [enqueue, refresh],
+  );
+
   const disconnect = useCallback(() => {
     saveSyncKey(null);
     mirror.current = null;
@@ -260,6 +281,13 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     const onShow = () => {
       if (document.visibilityState === 'hidden') {
         enqueue(() => publish());
+        return;
+      }
+      if (awaitingShortcut.current) {
+        awaitingShortcut.current = false;
+        last = Date.now();
+        enqueue(() => refresh());
+        for (const wait of [6000, 20000]) window.setTimeout(() => enqueue(() => refresh()), wait);
         return;
       }
       const now = Date.now();
@@ -637,6 +665,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       syncError,
       sync,
       healthIssue,
+      syncHealth,
       connect,
       disconnect,
       linkForDevice,
@@ -680,6 +709,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       syncError,
       sync,
       healthIssue,
+      syncHealth,
       connect,
       disconnect,
       linkForDevice,

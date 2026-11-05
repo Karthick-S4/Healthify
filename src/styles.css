@@ -794,6 +794,9 @@ button.streak-board { width: 100%; color: inherit; font: inherit; text-align: le
 .sr-fire b { position: absolute; left: 0; right: 0; bottom: 12px; font-family: var(--rounded); font-size: 1.45rem; font-weight: 800; line-height: 1; color: var(--muted); }
 .sr-fire-days { font-size: 0.74rem; font-weight: 700; color: var(--muted); }
 .sr-fire-item strong { font-size: 0.84rem; color: var(--ink); }
+.mv-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.mv-head .ghost.small { min-height: 30px; padding: 0 14px; font-size: 0.8rem; font-weight: 700; }
+button.mv-open { display: flex; flex-direction: column; gap: 12px; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .mv-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 0; text-align: center; }
 .mv-item b { font-family: var(--rounded); font-size: 1.6rem; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; color: var(--ink); white-space: nowrap; }
 .mv-item small { font-size: 0.8rem; font-weight: 600; color: var(--muted); letter-spacing: 0; }

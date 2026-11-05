@@ -34,15 +34,7 @@ function mergeData(older: AppData, newer: AppData): AppData {
   const health: Record<string, HealthDay> = { ...(older.health ?? {}) };
   for (const [day, next] of Object.entries(newer.health ?? {})) {
     const kept = health[day];
-    health[day] = kept
-      ? {
-          steps: Math.max(kept.steps, next.steps),
-          activeKcal: Math.max(kept.activeKcal, next.activeKcal),
-          exerciseMin: Math.max(kept.exerciseMin, next.exerciseMin),
-          standMin: Math.max(kept.standMin, next.standMin),
-          updatedAt: time(next.updatedAt) >= time(kept.updatedAt) ? next.updatedAt : kept.updatedAt,
-        }
-      : next;
+    health[day] = kept && time(kept.updatedAt) > time(next.updatedAt) ? kept : next;
   }
   return {
     version: 1,

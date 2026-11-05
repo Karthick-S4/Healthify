@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHealthFiles, healthNumber, readHealthFile } from './appleHealth';
+import { applyHealthFiles, healthFileTime, healthNumber, readHealthFile } from './appleHealth';
 import { freshData, normalizeBook } from './storage';
 
 const WATCH = 'Niv’s Apple Watch';
@@ -106,6 +106,17 @@ describe('apple health import', () => {
     expect(out.unmatched).toEqual([]);
     expect(out.book.profiles[0].data.health['2026-11-05']).toMatchObject({ steps: 240, activeKcal: 4, standMin: 0 });
     expect(out.book.profiles[0].data.healthFiles).toEqual(['20261105-191406']);
+  });
+
+  it('keeps the latest file of the day, even when its numbers are lower', () => {
+    const morning = { name: '20261105-091500', body: 'Profile: Niv\nSteps: 900\nActive Calories: 80\nStand Time: 30' };
+    const evening = { name: '20261105-211500.txt', body: 'Profile: Niv\nSteps: 400\nActive Calories: 50\nStand Time: 20' };
+    const later = applyHealthFiles(bookWith('Niv'), [morning, evening], '2026-11-05T16:00:00.000Z').book;
+    expect(later.profiles[0].data.health['2026-11-05']).toMatchObject({ steps: 400, activeKcal: 50, standMin: 20 });
+    expect(healthFileTime('20261105-211500.txt')).toBe(new Date(2026, 10, 5, 21, 15, 0).toISOString());
+
+    const stale = applyHealthFiles(later, [{ name: '20261105-120000', body: 'Profile: Niv\nSteps: 5000' }], '2026-11-05T16:05:00.000Z').book;
+    expect(stale.profiles[0].data.health['2026-11-05'].steps).toBe(400);
   });
 
   it('takes the profile and day from the file name when the text has none', () => {

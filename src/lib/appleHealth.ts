@@ -266,19 +266,21 @@ export function readHealthFile(body: unknown, fileName = ''): FileResult {
   return { profile, days, workouts, used: samples.length, skipped };
 }
 
-function mergeDay(old: HealthDay | undefined, next: DayTotals, now: string): HealthDay {
-  return {
-    steps: Math.max(old?.steps ?? 0, next.steps),
-    activeKcal: Math.max(old?.activeKcal ?? 0, next.activeKcal),
-    exerciseMin: Math.max(old?.exerciseMin ?? 0, next.exerciseMin),
-    standMin: Math.max(old?.standMin ?? 0, next.standMin),
-    updatedAt: now,
-  };
+export function healthFileTime(name: string): string | null {
+  const match = /(\d{4})-?(\d{2})-?(\d{2})(?:[-_T ]?(\d{2})(\d{2})(\d{2})?)?/.exec(name);
+  if (!match) return null;
+  const [, year, month, day, hour = '0', minute = '0', second = '0'] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 function applyResult(data: AppData, result: FileResult, fileName: string, now: string): AppData {
   const health = { ...data.health };
-  for (const [day, totals] of Object.entries(result.days)) health[day] = mergeDay(health[day], totals, now);
+  const at = healthFileTime(fileName) ?? now;
+  for (const [day, totals] of Object.entries(result.days)) {
+    const old = health[day];
+    if (!old || Date.parse(at) >= Date.parse(old.updatedAt)) health[day] = { ...totals, updatedAt: at };
+  }
   const activities = [...data.activities];
   for (const workout of result.workouts) {
     if (data.removedLogIds.includes(workout.id)) continue;

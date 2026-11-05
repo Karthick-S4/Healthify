@@ -1,7 +1,7 @@
 import { normalizeBook } from './storage';
 import { mergeBooks } from './sync';
 import type { ProfileBook } from '../types';
-import type { HealthFile } from './appleHealth';
+import { healthFileTime, readHealthFile, type HealthFile } from './appleHealth';
 
 const REPO = 'Karthick-S4/Healthify-data';
 const FILE_URL = `https://api.github.com/repos/${REPO}/contents/diary.json`;
@@ -114,28 +114,70 @@ async function readFileText(url: string, key: string): Promise<string | null> {
   return content ? fromBase64(content) : null;
 }
 
+type HealthEntry = { name: string; type: string; url: string; sha: string };
+
+const HEALTH_DIR = `https://api.github.com/repos/${REPO}/contents/health`;
+
+function parseHealthText(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function byFileTime(a: HealthEntry, b: HealthEntry): number {
+  const at = healthFileTime(a.name) ?? '';
+  const bt = healthFileTime(b.name) ?? '';
+  return at === bt ? (a.name < b.name ? -1 : 1) : at < bt ? -1 : 1;
+}
+
 export async function pullHealthFiles(skip: Set<string>, limit = 20): Promise<HealthFile[]> {
   const key = readSyncKey();
   if (!key) return [];
-  const listing = await send(`https://api.github.com/repos/${REPO}/contents/health`, key);
+  const listing = await send(HEALTH_DIR, key);
   if (!listing?.ok) return [];
-  const entries = (await listing.json()) as { name: string; type: string; url: string }[];
+  const entries = (await listing.json()) as HealthEntry[];
   if (!Array.isArray(entries)) return [];
-  const fresh = entries
-    .filter((entry) => entry.type === 'file' && (/\.(json|txt)$/i.test(entry.name) || !entry.name.includes('.')) && !skip.has(entry.name))
-    .sort((a, b) => (a.name < b.name ? -1 : 1))
-    .slice(0, limit);
+  const usable = entries
+    .filter((entry) => entry.type === 'file' && (/\.(json|txt)$/i.test(entry.name) || !entry.name.includes('.')))
+    .sort(byFileTime);
+
+  const texts = new Map<string, string>();
+  const stale: HealthEntry[] = [];
+  const byDay = new Map<string, HealthEntry[]>();
+  for (const entry of usable) {
+    const day = /(\d{4})-?(\d{2})-?(\d{2})/.exec(entry.name)?.slice(1).join('-');
+    if (day) byDay.set(day, [...(byDay.get(day) ?? []), entry]);
+  }
+  for (const group of byDay.values()) {
+    if (group.length < 2) continue;
+    const newest = new Map<string, HealthEntry>();
+    for (const entry of group) {
+      const text = await readFileText(entry.url, key);
+      if (text === null) continue;
+      texts.set(entry.name, text);
+      const who = readHealthFile(parseHealthText(text), entry.name).profile?.toLocaleLowerCase() ?? '';
+      const older = newest.get(who);
+      if (older) stale.push(older);
+      newest.set(who, entry);
+    }
+  }
+  for (const entry of stale) {
+    await send(`${HEALTH_DIR}/${encodeURIComponent(entry.name)}`, key, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: 'Remove older Apple Health file', sha: entry.sha }),
+    });
+  }
+
+  const gone = new Set(stale.map((entry) => entry.name));
+  const fresh = usable.filter((entry) => !skip.has(entry.name) && !gone.has(entry.name)).slice(0, limit);
   const files: HealthFile[] = [];
   for (const entry of fresh) {
-    const text = await readFileText(entry.url, key);
+    const text = texts.get(entry.name) ?? (await readFileText(entry.url, key));
     if (text === null) continue;
-    let body: unknown = text;
-    try {
-      body = JSON.parse(text);
-    } catch {
-      body = text;
-    }
-    files.push({ name: entry.name, body });
+    files.push({ name: entry.name, body: parseHealthText(text) });
   }
   return files;
 }

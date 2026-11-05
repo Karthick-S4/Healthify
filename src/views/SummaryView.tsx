@@ -6,7 +6,7 @@ import { StreakSummary } from '../components/StreakSummary';
 import { TrendChart } from '../components/TrendChart';
 import { targetForDay } from '../lib/budget';
 import { addDays, formatLong, formatShort, todayISO, weekRange } from '../lib/dates';
-import { formatKcal } from '../lib/format';
+import { formatHours, formatKcal, formatTime } from '../lib/format';
 import { measureRank } from '../lib/measures';
 import { cheatDates } from '../lib/streaks';
 import { useHealth } from '../state';
@@ -50,7 +50,8 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
   const { start } = weekRange(today);
   const weekMinutes = data.activities.filter((entry) => entry.date >= start && entry.date <= today).reduce((sum, entry) => sum + entry.minutes, 0);
   const todayMinutes = data.activities.filter((entry) => entry.date === today).reduce((sum, entry) => sum + entry.minutes, 0);
-  const todaySteps = data.health[today]?.steps ?? 0;
+  const moved = data.health[today] ?? null;
+  const hasHealth = Object.keys(data.health).some((iso) => iso >= addDays(today, -13));
 
   const parts = useMemo(() => {
     const latest = new Map<string, { part: string; cm: number; first: number; date: string }>();
@@ -85,6 +86,10 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
             Connect it
           </button>
         </p>
+      )}
+
+      {health.healthIssue && (
+        <p className="help">An Apple Health file names a profile that isn’t here. Check the Profile line in the Shortcut matches the name she signs in with.</p>
       )}
 
       <StreakSummary onOpen={() => onOpen('streaks')} />
@@ -148,8 +153,28 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
             <span> min this week</span>
           </p>
           <p className="note">{todayMinutes > 0 ? `${plural(todayMinutes, 'minute')} today` : 'Nothing logged today yet.'}</p>
-          {todaySteps > 0 && <p className="note">{formatKcal(todaySteps)} steps today</p>}
         </button>
+
+        {(moved || hasHealth) && (
+          <button type="button" className="card tile" onClick={() => onOpen('move')}>
+            <p className="eyebrow">Today’s movement</p>
+            <p className="tile-num">
+              {formatKcal(moved?.steps ?? 0)}
+              <span> steps</span>
+            </p>
+            <ul className="tile-list">
+              <li>
+                <span>Active calories</span>
+                <strong>{formatKcal(moved?.activeKcal ?? 0)} kcal</strong>
+              </li>
+              <li>
+                <span>Standing</span>
+                <strong>{formatHours(moved?.standMin ?? 0)}</strong>
+              </li>
+            </ul>
+            <p className="note">{moved ? `From Apple Health, updated ${formatTime(moved.updatedAt)}` : 'Arrives when the Shortcut runs.'}</p>
+          </button>
+        )}
 
         <button type="button" className="card tile" onClick={() => onOpen('body')}>
           <p className="eyebrow">Measurements</p>

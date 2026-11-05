@@ -5,11 +5,6 @@ import { formatKcal } from '../lib/format';
 import { activityDay, activityStreak, cheatDates, weekMarks, withCheat } from '../lib/streaks';
 import { useHealth } from '../state';
 
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-}
-
 export function ActivityView() {
   const health = useHealth();
   const today = todayISO();
@@ -19,9 +14,6 @@ export function ActivityView() {
   const [date, setDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
-
-  const todayHealth = health.data.health[today] ?? null;
-  const hasHealth = Object.keys(health.data.health).some((iso) => iso >= addDays(today, -13));
 
   const cheat = cheatDates(health.data.cheatDays);
   const streak = activityStreak(activities, today, cheat);
@@ -154,36 +146,6 @@ export function ActivityView() {
       <div className="today-log">
         {health.healthIssue && (
           <p className="help">An Apple Health file names a profile that isn’t here. Check the profile name in the Shortcut matches the one she signs in with.</p>
-        )}
-        {(todayHealth || hasHealth) && (
-          <section className="card">
-            <div className="streak-head">
-              <h2>Today from Apple Health</h2>
-              {todayHealth && <p className="streak-week">updated {formatTime(todayHealth.updatedAt)}</p>}
-            </div>
-            {todayHealth ? (
-              <div className="health-grid">
-                <p>
-                  <b>{formatKcal(todayHealth.steps)}</b>
-                  <span>steps</span>
-                </p>
-                <p>
-                  <b>{formatKcal(todayHealth.activeKcal)}</b>
-                  <span>active kcal</span>
-                </p>
-                <p>
-                  <b>{formatKcal(todayHealth.exerciseMin)}</b>
-                  <span>exercise min</span>
-                </p>
-                <p>
-                  <b>{formatKcal(todayHealth.standMin)}</b>
-                  <span>stand min</span>
-                </p>
-              </div>
-            ) : (
-              <p className="note">Nothing from today yet. It arrives when the Shortcut runs.</p>
-            )}
-          </section>
         )}
         <section className="card">
           <div className="streak-head">

@@ -76,41 +76,6 @@ export function ActivityView() {
           <p className="dateline">{formatLong(today)}</p>
         </header>
 
-        <section className="card streak-card">
-          <div className="streak-head">
-            <p className="eyebrow">Activity streak</p>
-            <p className="streak-week">{weekDone(marks)} of 7 this week</p>
-          </div>
-          <p className="streak-num">
-            {streak.days}
-            <span> {streak.days === 1 ? 'day' : 'days'}</span>
-          </p>
-          <WeekStars marks={marks} />
-          <p className="note">
-            {streak.doneToday ? 'Today counts. Keep it going tomorrow.' : streak.days > 0 ? 'Move a little today to keep the streak.' : 'Any activity today starts a streak.'}
-          </p>
-        </section>
-
-        <section className="card">
-          <div className="streak-head">
-            <h2>This week</h2>
-            <p className="streak-week">{weekMinutes} min</p>
-          </div>
-          <div className="minute-bars">
-            {week.map((day) => (
-              <div key={day.iso} className={day.iso === today ? 'minute-bar today' : 'minute-bar'}>
-                <span className="minute-track">
-                  <span className="minute-fill" style={{ height: day.minutes > 0 ? `${Math.max((day.minutes / peak) * 100, 8)}%` : 0 }} />
-                </span>
-                <small>{day.minutes > 0 ? day.minutes : ''}</small>
-                <span className="strip-letter">{formatWeekday(day.iso).slice(0, 1)}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <div className="today-log">
         <form className="composer" onSubmit={onSubmit}>
           <label className="field-label" htmlFor="activity-name">
             Activity
@@ -160,6 +125,41 @@ export function ActivityView() {
           {error && <p className="error">{error}</p>}
           {saved && <p className="preview">{saved}</p>}
         </form>
+
+        <section className="card streak-card">
+          <div className="streak-head">
+            <p className="eyebrow">Activity streak</p>
+            <p className="streak-week">{weekDone(marks)} of 7 this week</p>
+          </div>
+          <p className="streak-num">
+            {streak.days}
+            <span> {streak.days === 1 ? 'day' : 'days'}</span>
+          </p>
+          <WeekStars marks={marks} />
+          <p className="note">
+            {streak.doneToday ? 'Today counts. Keep it going tomorrow.' : streak.days > 0 ? 'Move a little today to keep the streak.' : 'Any activity today starts a streak.'}
+          </p>
+        </section>
+      </div>
+
+      <div className="today-log">
+        <section className="card">
+          <div className="streak-head">
+            <h2>This week</h2>
+            <p className="streak-week">{weekMinutes} min</p>
+          </div>
+          <div className="minute-bars">
+            {week.map((day) => (
+              <div key={day.iso} className={day.iso === today ? 'minute-bar today' : 'minute-bar'}>
+                <span className="minute-track">
+                  <span className="minute-fill" style={{ height: day.minutes > 0 ? `${Math.max((day.minutes / peak) * 100, 8)}%` : 0 }} />
+                </span>
+                <small>{day.minutes > 0 ? day.minutes : ''}</small>
+                <span className="strip-letter">{formatWeekday(day.iso).slice(0, 1)}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="meals">
           <h2>Last two weeks</h2>

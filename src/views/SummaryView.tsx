@@ -6,7 +6,7 @@ import { StreakSummary } from '../components/StreakSummary';
 import { TrendChart } from '../components/TrendChart';
 import { targetForDay } from '../lib/budget';
 import { addDays, formatLong, formatShort, todayISO, weekRange } from '../lib/dates';
-import { formatHours, formatKcal, formatTime } from '../lib/format';
+import { formatHours, formatKcal, formatTime, hoursWord } from '../lib/format';
 import { measureRank } from '../lib/measures';
 import { cheatDates } from '../lib/streaks';
 import { useHealth } from '../state';
@@ -124,6 +124,33 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
         </div>
       </section>
 
+      {(moved || hasHealth) && (
+        <button type="button" className="card streak-board" onClick={() => onOpen('move')}>
+          <span className="eyebrow">Today’s movement</span>
+          <span className="sr-fires">
+            <span className="mv-item">
+              <b>{formatKcal(moved?.steps ?? 0)}</b>
+              <strong>Steps</strong>
+            </span>
+            <span className="mv-item">
+              <b>
+                {formatKcal(moved?.activeKcal ?? 0)}
+                <small> kcal</small>
+              </b>
+              <strong>Active calories</strong>
+            </span>
+            <span className="mv-item">
+              <b>
+                {formatHours(moved?.standMin ?? 0)}
+                <small> {hoursWord(moved?.standMin ?? 0)}</small>
+              </b>
+              <strong>Standing</strong>
+            </span>
+          </span>
+          <span className="mv-note">{moved ? `From Apple Health, updated ${formatTime(moved.updatedAt)}` : 'Arrives when the Shortcut runs.'}</span>
+        </button>
+      )}
+
       <h2 className="section-title">Body and activity</h2>
       <div className="summary-grid">
         <button type="button" className="card tile" onClick={() => onOpen('body')}>
@@ -154,28 +181,6 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
           </p>
           <p className="note">{todayMinutes > 0 ? `${plural(todayMinutes, 'minute')} today` : 'Nothing logged today yet.'}</p>
         </button>
-
-        {(moved || hasHealth) && (
-          <button type="button" className="card tile" onClick={() => onOpen('move')}>
-            <p className="eyebrow">Today’s movement</p>
-            <p className="tile-num">
-              {formatKcal(moved?.steps ?? 0)}
-              <span> steps</span>
-            </p>
-            <ul className="tile-list">
-              <li>
-                <span>Active calories</span>
-                <strong>{formatKcal(moved?.activeKcal ?? 0)} kcal</strong>
-              </li>
-              <li>
-                <span>Standing</span>
-                <strong>{formatHours(moved?.standMin ?? 0)}</strong>
-              </li>
-            </ul>
-            <p className="note">{moved ? `From Apple Health, updated ${formatTime(moved.updatedAt)}` : 'Arrives when the Shortcut runs.'}</p>
-          </button>
-        )}
-
         <button type="button" className="card tile" onClick={() => onOpen('body')}>
           <p className="eyebrow">Measurements</p>
           {parts.length === 0 ? (

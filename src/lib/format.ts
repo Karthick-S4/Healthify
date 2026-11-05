@@ -5,8 +5,11 @@ export function formatKcal(value: number): string {
 }
 
 export function formatHours(minutes: number): string {
-  const hours = Math.round(minutes / 6) / 10;
-  return `${hours} ${hours === 1 ? 'hr' : 'hrs'}`;
+  return String(Math.round(minutes / 6) / 10);
+}
+
+export function hoursWord(minutes: number): string {
+  return Math.round(minutes / 6) === 10 ? 'hr' : 'hrs';
 }
 
 export function formatTime(iso: string): string {

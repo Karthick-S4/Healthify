@@ -100,6 +100,14 @@ describe('apple health import', () => {
     expect(result.days).toEqual({ '2026-11-05': { steps: 240, activeKcal: 4, exerciseMin: 0, standMin: 55 } });
   });
 
+  it('imports her uploaded text file into a profile that starts with the given name', () => {
+    const body = "Profile: Niv\nToday's Health Data:\nSteps: 43\n36\n46\n115\nActive Calories: 3.839\n0\nStand Time: ";
+    const out = applyHealthFiles(bookWith('Nivetha'), [{ name: '20261105-191406', body }], '2026-11-05T13:44:00.000Z');
+    expect(out.unmatched).toEqual([]);
+    expect(out.book.profiles[0].data.health['2026-11-05']).toMatchObject({ steps: 240, activeKcal: 4, standMin: 0 });
+    expect(out.book.profiles[0].data.healthFiles).toEqual(['20261105-191406']);
+  });
+
   it('takes the profile and day from the file name when the text has none', () => {
     const result = readHealthFile('Steps: 1,200\n300\nExercise Minutes: 12\n8', 'Niv-20261104-2100.txt');
     expect(result.profile).toBe('Niv');

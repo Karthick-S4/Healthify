@@ -304,6 +304,16 @@ export function importedHealthFiles(book: ProfileBook): Set<string> {
   return new Set(book.profiles.flatMap((profile) => profile.data.healthFiles));
 }
 
+function findProfile(profiles: ProfileBook['profiles'], name: string | null) {
+  const key = name?.trim().toLocaleLowerCase();
+  if (!key) return undefined;
+  const named = (profile: ProfileBook['profiles'][number]) => profile.name.trim().toLocaleLowerCase();
+  const exact = profiles.find((profile) => named(profile) === key);
+  if (exact) return exact;
+  const starts = profiles.filter((profile) => named(profile).startsWith(key));
+  return starts.length === 1 ? starts[0] : undefined;
+}
+
 export function applyHealthFiles(
   book: ProfileBook,
   files: HealthFile[],
@@ -313,8 +323,7 @@ export function applyHealthFiles(
   let profiles = book.profiles;
   for (const file of files) {
     const result = readHealthFile(file.body, file.name);
-    const key = result.profile?.toLocaleLowerCase();
-    const target = key ? profiles.find((profile) => profile.name.trim().toLocaleLowerCase() === key) : undefined;
+    const target = findProfile(profiles, result.profile);
     if (!target || target.data.healthFiles.includes(file.name)) {
       if (!target) unmatched.push(file.name);
       continue;

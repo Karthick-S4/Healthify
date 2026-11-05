@@ -122,7 +122,7 @@ export async function pullHealthFiles(skip: Set<string>, limit = 20): Promise<He
   const entries = (await listing.json()) as { name: string; type: string; url: string }[];
   if (!Array.isArray(entries)) return [];
   const fresh = entries
-    .filter((entry) => entry.type === 'file' && /\.(json|txt)$/i.test(entry.name) && !skip.has(entry.name))
+    .filter((entry) => entry.type === 'file' && (/\.(json|txt)$/i.test(entry.name) || !entry.name.includes('.')) && !skip.has(entry.name))
     .sort((a, b) => (a.name < b.name ? -1 : 1))
     .slice(0, limit);
   const files: HealthFile[] = [];

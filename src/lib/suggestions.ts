@@ -61,9 +61,61 @@ export const MEAL_TEMPLATES: MealTemplate[] = [
   { title: 'Rice and soya curry', query: '1 bowl rice, soya chunks curry', slot: 'evening' },
   { title: 'Dosa and egg curry', query: '2 dosa, egg curry', slot: 'evening' },
   { title: 'Pesarattu dinner', query: '2 pesarattu, tomato chutney', slot: 'evening' },
+  { title: 'Oats, banana and peanut butter', query: 'oats 40g, 1 glass milk, banana, 1 peanut butter', slot: 'morning' },
+  { title: 'Oats porridge and nuts', query: '1 bowl oats porridge, mixed nuts 15g', slot: 'morning' },
+  { title: 'Oats upma', query: '1 bowl oats upma', slot: 'morning' },
+  { title: 'Oats dosa and sambar', query: '2 oats dosa, 1 bowl sambar', slot: 'morning' },
+  { title: 'Solam dosa and chutney', query: '2 solam dosa, coconut chutney', slot: 'morning' },
+  { title: 'Ragi dosa and sambar', query: '2 ragi dosa, 1 bowl sambar', slot: 'morning' },
+  { title: 'Ragi malt and boiled egg', query: '1 glass ragi malt, 1 boiled egg', slot: 'morning' },
+  { title: 'Boiled eggs and fruit', query: '2 boiled egg, apple', slot: 'morning' },
+  { title: 'Tofu bhurji and chapati', query: '1 bowl tofu bhurji, 1 chapati', slot: 'morning' },
+  { title: 'Rice, dal and beans poriyal', query: '1 bowl rice, 1 bowl dal, beans poriyal', slot: 'midday' },
+  { title: 'Rice, sambar and ladies finger fry', query: '1 bowl rice, 1 bowl sambar, ladies finger fry', slot: 'midday' },
+  { title: 'Chapati, dal and vegetables', query: '2 chapati, 1 bowl dal, vegetables', slot: 'midday' },
+  { title: 'Chapati and green gram curry', query: '2 chapati, green gram curry', slot: 'midday' },
+  { title: 'Carrot rice and curd', query: '1 bowl carrot rice, curd', slot: 'midday' },
+  { title: 'Rice, chicken curry and cucumber', query: '1 bowl rice, chicken curry, cucumber', slot: 'midday' },
+  { title: 'Chapati and tofu curry', query: '2 chapati, tofu curry', slot: 'midday' },
+  { title: 'Rice, kootu and keerai', query: '1 bowl rice, kootu, keerai', slot: 'midday' },
+  { title: 'Rice, kuzhambu and poriyal', query: '1 bowl rice, kuzhambu, beans poriyal', slot: 'midday' },
+  { title: 'Rice, moong dal and carrot poriyal', query: '1 bowl rice, moong dal, carrot poriyal', slot: 'midday' },
+  { title: 'Brown rice, dal and keerai', query: '1 bowl brown rice, 1 bowl dal, keerai', slot: 'midday' },
+  { title: 'Millet rice and sambar', query: '1 bowl millet rice, 1 bowl sambar, cabbage poriyal', slot: 'midday' },
+  { title: 'Rice, avial and curd', query: '1 bowl rice, avial, curd', slot: 'midday' },
+  { title: 'Solam, dal and vegetables', query: '1 bowl solam, 1 bowl dal, vegetables', slot: 'midday' },
+  { title: 'Quinoa, tofu and vegetables', query: '1 bowl quinoa, tofu 100g, vegetables', slot: 'midday' },
+  { title: 'Rice, chicken fry and rasam', query: '1 bowl rice, chicken fry, 1 bowl rasam', slot: 'midday' },
+  { title: 'Banana and peanut butter', query: 'banana, 1 peanut butter', slot: 'snack' },
+  { title: 'Apple and peanut butter', query: 'apple, 1 peanut butter', slot: 'snack' },
+  { title: 'Mixed nuts', query: 'mixed nuts 20g', slot: 'snack' },
+  { title: 'Cucumber and carrot', query: 'cucumber, carrot', slot: 'snack' },
+  { title: 'Boiled egg and cucumber', query: '2 boiled egg, cucumber', slot: 'snack' },
+  { title: 'Fruit bowl', query: 'papaya, pomegranate', slot: 'snack' },
+  { title: 'Guava and orange', query: 'guava, orange', slot: 'snack' },
+  { title: 'Chana sundal', query: '1 bowl chana sundal', slot: 'snack' },
+  { title: 'Green gram sundal', query: '1 bowl green gram sundal', slot: 'snack' },
+  { title: 'Roasted chana', query: 'roasted chana', slot: 'snack' },
+  { title: 'Makhana', query: 'makhana 20g', slot: 'snack' },
+  { title: 'Dates and walnuts', query: '2 dates, walnuts 10g', slot: 'snack' },
+  { title: 'Boiled corn', query: '1 boiled corn', slot: 'snack' },
+  { title: 'Sweet potato', query: '1 sweet potato', slot: 'snack' },
+  { title: 'Ragi malt', query: '1 glass ragi malt', slot: 'snack' },
+  { title: 'Almonds and an apple', query: 'almonds, apple', slot: 'snack' },
+  { title: 'Chapati and tofu bhurji', query: '2 chapati, tofu bhurji', slot: 'evening' },
+  { title: 'Chapati, chicken and salad', query: '2 chapati, grilled chicken 100g, salad', slot: 'evening' },
+  { title: 'Jowar roti and vegetables', query: '2 jowar roti, vegetables, 1 bowl dal', slot: 'evening' },
+  { title: 'Chapati, dal and beans poriyal', query: '2 chapati, 1 bowl dal, beans poriyal', slot: 'evening' },
+  { title: 'Ragi dosa dinner', query: '2 ragi dosa, tomato chutney', slot: 'evening' },
+  { title: 'Solam dosa and sambar', query: '2 solam dosa, 1 bowl sambar', slot: 'evening' },
+  { title: 'Tofu and vegetables', query: 'tofu 150g, vegetables', slot: 'evening' },
+  { title: 'Green gram curry and chapati', query: '2 chapati, green gram curry, cucumber', slot: 'evening' },
+  { title: 'Oats dosa and chutney', query: '2 oats dosa, coconut chutney', slot: 'evening' },
+  { title: 'Boiled eggs and vegetables', query: '2 boiled egg, vegetables, 1 chapati', slot: 'evening' },
+  { title: 'Chapati and ladies finger fry', query: '2 chapati, ladies finger fry, 1 bowl dal', slot: 'evening' },
 ];
 
-export type SuggestionKind = 'protein' | 'fit' | 'fill' | 'usual' | 'light';
+export type SuggestionKind = 'protein' | 'fit' | 'fill' | 'usual' | 'more' | 'light';
 
 export type Suggestion = {
   title: string;
@@ -79,6 +131,7 @@ export const KIND_LABEL: Record<SuggestionKind, string> = {
   fit: 'Fits what’s left',
   fill: 'Fills the day',
   usual: 'From the log',
+  more: 'More to pick from',
   light: 'If you’re still hungry',
 };
 
@@ -90,6 +143,12 @@ const SLOT_AIM: Record<MealSlot, number> = {
 };
 
 const PROTEIN_RICH = 12;
+
+function dailyOrder(day: string, title: string): number {
+  let hash = 2166136261;
+  for (const char of `${day}|${title}`) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return (hash >>> 0) / 4294967296;
+}
 
 export function slotForHour(hour: number): MealSlot {
   if (hour < 11) return 'morning';
@@ -198,23 +257,25 @@ export function suggestMeals(args: {
     return out;
   };
   const inSlot = (idea: Candidate) => (idea.slot === slot ? 0 : 1);
-  const density = (idea: Candidate) => (idea.protein ?? 0) / Math.max(idea.kcal, 1);
+  const density = (idea: Candidate) => Math.round(((idea.protein ?? 0) / Math.max(idea.kcal, 1)) * 40);
+  const shuffle = (idea: Candidate) => dailyOrder(args.today, idea.title);
+  const closeness = (idea: Candidate, target: number) => Math.round(Math.abs(idea.kcal - target) / 75);
 
   if (args.light) {
-    const light = [...candidates].sort((a, b) => (b.protein ?? 0) - (a.protein ?? 0) || a.kcal - b.kcal);
-    return take(light, 'light', 6);
+    const light = [...candidates].sort((a, b) => Math.round((b.protein ?? 0) / 3) - Math.round((a.protein ?? 0) / 3) || shuffle(a) - shuffle(b));
+    return take(light, 'light', 8);
   }
 
   const protein = take(
     candidates
       .filter((idea) => (idea.protein ?? 0) >= PROTEIN_RICH)
-      .sort((a, b) => inSlot(a) - inSlot(b) || density(b) - density(a)),
+      .sort((a, b) => inSlot(a) - inSlot(b) || density(b) - density(a) || shuffle(a) - shuffle(b)),
     'protein',
     4,
   );
 
   const fit = take(
-    [...candidates].sort((a, b) => inSlot(a) - inSlot(b) || Math.abs(a.kcal - aim) - Math.abs(b.kcal - aim)),
+    [...candidates].sort((a, b) => inSlot(a) - inSlot(b) || closeness(a, aim) - closeness(b, aim) || shuffle(a) - shuffle(b)),
     'fit',
     4,
   );
@@ -223,7 +284,7 @@ export function suggestMeals(args: {
   const fill =
     maxKcal >= 350
       ? take(
-          [...candidates].sort((a, b) => Math.abs(a.kcal - fillAim) - Math.abs(b.kcal - fillAim)),
+          [...candidates].sort((a, b) => closeness(a, fillAim) - closeness(b, fillAim) || shuffle(a) - shuffle(b)),
           'fill',
           2,
         )
@@ -235,7 +296,13 @@ export function suggestMeals(args: {
     return true;
   });
 
-  return [...protein, ...fit, ...fill, ...usual];
+  const more = take(
+    candidates.filter((idea) => idea.slot === slot).sort((a, b) => shuffle(a) - shuffle(b)),
+    'more',
+    12,
+  );
+
+  return [...protein, ...fit, ...fill, ...usual, ...more];
 }
 
 export function mixedIdeas(ideas: Suggestion[], count: number): Suggestion[] {

@@ -86,6 +86,16 @@ describe('budgets', () => {
 
 describe('suggestions', () => {
   it('parses every built-in meal', () => {
+    const expected: Record<string, string> = {
+      solam: 'solam', 'solam dosa': 'solam-dosa', 'peanut butter': 'peanut-butter', nuts: 'mixed-nuts', 'boiled egg': 'egg',
+      cucumber: 'cucumber', carrot: 'carrot', 'carrot rice': 'carrot-rice', chapati: 'roti', tofu: 'tofu', 'green dal curry': 'green-gram-curry',
+      'beans fry': 'beans-poriyal', 'ladies finger fry': 'bhindi-fry', vegetables: 'vegetables', curry: 'veg-curry', keerai: 'keerai',
+      kootu: 'kootu', avial: 'avial', makhana: 'makhana', corn: 'boiled-corn', 'pasi paruppu': 'moong-dal', 'chana sundal': 'sundal',
+    };
+    for (const [query, id] of Object.entries(expected)) {
+      const item = parseFoodList(query, BUILT_IN_FOODS).items[0];
+      expect(item?.kind === 'food' ? item.food.id : item?.kind, query).toBe(id);
+    }
     for (const meal of MEAL_TEMPLATES) {
       const parsed = parseFoodList(meal.query, BUILT_IN_FOODS);
       const foods = parsed.items.filter((item) => item.kind === 'food');

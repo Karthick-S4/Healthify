@@ -54,7 +54,7 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
     () => proteinEaten(health.data.logs.filter((log) => log.date === today), health.foods),
     [health.data.logs, health.foods, today],
   );
-  const groups = (['protein', 'fit', 'fill', 'usual', 'light'] as const)
+  const groups = (['protein', 'fit', 'fill', 'usual', 'more', 'light'] as const)
     .map((kind) => ({ kind, items: ideas.filter((idea) => idea.kind === kind) }))
     .filter((group) => group.items.length > 0);
 

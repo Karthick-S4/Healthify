@@ -119,6 +119,6 @@ export function estimateDish(query: string): DishEstimate | null {
     name: query.trim().replace(/\b[a-z]/g, (letter) => letter.toUpperCase()),
     kcalPer100g: kcal,
     servingGrams: style.serving,
-    detail: `Healthify’s estimate for ${food.name} cooked as ${style.label}, with about ${style.oil} g of oil per 100 g`,
+    detail: `NivFit’s estimate for ${food.name} cooked as ${style.label}, with about ${style.oil} g of oil per 100 g`,
   };
 }

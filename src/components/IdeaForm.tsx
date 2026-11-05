@@ -1,3 +1,4 @@
+import { newId } from '../lib/id';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { correctQuery } from '../lib/foods';
 import { formatKcal } from '../lib/format';
@@ -18,7 +19,7 @@ type Status =
   | { kind: 'missing'; grams: number; kcal: number | null };
 
 function blank(): Row {
-  return { key: crypto.randomUUID(), name: '', amount: '', unit: 'serving', manual: '', editing: false };
+  return { key: newId(), name: '', amount: '', unit: 'serving', manual: '', editing: false };
 }
 
 function typedKcal(row: Row): number | null {
@@ -164,7 +165,7 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
       const kcalPer100g =
         status.kind === 'found' && status.kcal == null ? status.lookup.kcalPer100g : ((kcalOf(status) ?? 0) / Math.max(status.grams, 1)) * 100;
       const food: Food = {
-        id: crypto.randomUUID(),
+        id: newId(),
         name: displayName(cleanName(row.name)),
         group: 'Yours',
         aliases: [...new Set([typed, correctQuery(typed, health.foods)].filter(Boolean))],

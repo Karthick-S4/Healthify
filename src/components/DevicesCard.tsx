@@ -29,7 +29,7 @@ export function DevicesCard() {
     if (!link) return;
     try {
       if (navigator.share) {
-        await navigator.share({ title: 'Healthify', url: link });
+        await navigator.share({ title: 'NivFit', url: link });
         return;
       }
       await navigator.clipboard.writeText(link);

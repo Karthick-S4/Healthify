@@ -1,3 +1,4 @@
+import { newId } from './lib/id';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { captureLinkKey, deviceLink, pullDiary, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
@@ -331,7 +332,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const createProfile = useCallback((name: string): CreateResult => {
     const clean = name.trim();
     if (!isProfileName(clean)) return 'invalid';
-    const id = crypto.randomUUID();
+    const id = newId();
     const now = new Date().toISOString();
     let result: CreateResult = 'ok';
     setBook((bookNow) => {
@@ -404,7 +405,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   const addLogs = useCallback((entries: NewLog[]) => {
     const created = entries.map((entry) => ({
       ...entry,
-      id: crypto.randomUUID(),
+      id: newId(),
       createdAt: new Date().toISOString(),
     }));
     updateData((current) => ({ ...current, logs: [...current.logs, ...created] }));
@@ -432,7 +433,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       const replaced = current.weights.filter((entry) => entry.date === date).map((entry) => entry.id);
       return {
         ...current,
-        weights: [...current.weights.filter((entry) => entry.date !== date), { id: crypto.randomUUID(), date, kg, createdAt }],
+        weights: [...current.weights.filter((entry) => entry.date !== date), { id: newId(), date, kg, createdAt }],
         removedLogIds: unique([...current.removedLogIds, ...replaced]),
       };
     });
@@ -446,14 +447,14 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       const replaced = current.measures.filter(same).map((entry) => entry.id);
       return {
         ...current,
-        measures: [...current.measures.filter((entry) => !same(entry)), { id: crypto.randomUUID(), date, part: part.trim(), cm, createdAt }],
+        measures: [...current.measures.filter((entry) => !same(entry)), { id: newId(), date, part: part.trim(), cm, createdAt }],
         removedLogIds: unique([...current.removedLogIds, ...replaced]),
       };
     });
   }, [updateData]);
 
   const addActivity = useCallback((date: string, name: string, minutes: number) => {
-    const id = crypto.randomUUID();
+    const id = newId();
     const createdAt = new Date().toISOString();
     updateData((current) => ({ ...current, activities: [...current.activities, { id, date, name: name.trim(), minutes, createdAt }] }));
     return id;
@@ -476,7 +477,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         const unhidden = current.hiddenIdeas.filter((entry) => entry.key === key).map((entry) => entry.id);
         return {
           ...current,
-          customIdeas: [...current.customIdeas, { id: crypto.randomUUID(), title: title.trim(), query: query.trim(), slot, createdAt: new Date().toISOString() }],
+          customIdeas: [...current.customIdeas, { id: newId(), title: title.trim(), query: query.trim(), slot, createdAt: new Date().toISOString() }],
           hiddenIdeas: current.hiddenIdeas.filter((entry) => entry.key !== key),
           removedLogIds: unique([...current.removedLogIds, ...unhidden]),
         };
@@ -497,7 +498,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
         }
         const key = title.trim().toLocaleLowerCase();
         if (current.hiddenIdeas.some((entry) => entry.key === key)) return current;
-        return { ...current, hiddenIdeas: [...current.hiddenIdeas, { id: crypto.randomUUID(), key, createdAt: new Date().toISOString() }] };
+        return { ...current, hiddenIdeas: [...current.hiddenIdeas, { id: newId(), key, createdAt: new Date().toISOString() }] };
       });
     },
     [updateData],
@@ -516,7 +517,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       const same = current.cheatDays.filter((entry) => entry.date === date);
       if (on) {
         if (same.length > 0) return current;
-        return { ...current, cheatDays: [...current.cheatDays, { id: crypto.randomUUID(), date, createdAt: new Date().toISOString() }] };
+        return { ...current, cheatDays: [...current.cheatDays, { id: newId(), date, createdAt: new Date().toISOString() }] };
       }
       if (same.length === 0) return current;
       return {
@@ -706,6 +707,6 @@ export function HealthProvider({ children }: { children: ReactNode }) {
 
 export function useHealth(): HealthApi {
   const api = useContext(HealthContext);
-  if (!api) throw new Error('Healthify is outside its provider');
+  if (!api) throw new Error('NivFit is outside its provider');
   return api;
 }

@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 export function IconToday() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -62,11 +64,20 @@ export function IconBody() {
   );
 }
 
-export function IconFlame() {
+const HEART = 'M12 20.6C6.2 16.8 3 13.6 3 9.6 3 6.8 5.1 4.8 7.7 4.8c1.8 0 3.3.9 4.3 2.4 1-1.5 2.5-2.4 4.3-2.4 2.6 0 4.7 2 4.7 4.8 0 4-3.2 7.2-9 11z';
+
+export function HeartMark() {
+  const fill = `heart-${useId().replace(/:/g, '')}`;
   return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.5-5.6 3.8-8.8.4 2 1.4 3.2 2.6 3.9.2-2.6 1.3-4.9 3.4-6.4-.3 3.5 3.2 5.6 3.2 10.5 0 4.1-2.7 7-6.5 7z" {...stroke} />
-      <path d="M12 21c-1.7 0-2.9-1.2-2.9-2.9 0-1.6 1.2-2.6 2.1-4 .9 1.1 3.7 2.3 3.7 4.2 0 1.6-1.2 2.7-2.9 2.7z" {...stroke} />
+    <svg className="heart-mark" viewBox="0 0 24 24" aria-hidden="true">
+      <defs>
+        <linearGradient id={fill} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--accent-2)" />
+          <stop offset="100%" stopColor="var(--accent)" />
+        </linearGradient>
+      </defs>
+      <path d={HEART} fill={`url(#${fill})`} />
+      <path d="M7.2 8.4c.4-1 1.2-1.6 2.2-1.7" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }

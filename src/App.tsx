@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { IconBack, IconBody, IconFood, IconMore, IconMove, IconSummary } from './components/Icons';
+import { HeartMark, IconBack, IconBody, IconFood, IconMore, IconMove, IconSummary } from './components/Icons';
 import { HealthProvider, useHealth } from './state';
 import { ActivityView } from './views/ActivityView';
 import { BodyView } from './views/BodyView';
@@ -182,8 +182,9 @@ function Shell() {
           </div>
         )}
         <nav aria-label="Sections">
-          <button type="button" className="side-brand" aria-label="Healthify, go to Summary" onClick={() => setView('summary')}>
-            Healthify
+          <button type="button" className="side-brand" aria-label="NivFit, go to Summary" onClick={() => setView('summary')}>
+            <HeartMark />
+            NivFit
           </button>
           {TABS.map((item) => (
             <button key={item.id} type="button" aria-current={tab === item.id ? 'page' : undefined} onClick={() => setView(item.id)}>

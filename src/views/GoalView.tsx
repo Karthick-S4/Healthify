@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { HeartMark } from '../components/Icons';
 import { DAILY_MAX, DAILY_MIN } from '../lib/storage';
 import { useHealth } from '../state';
 
@@ -21,7 +22,10 @@ export function GoalView() {
 
   return (
     <div className="lock">
-      <h1>Healthify</h1>
+      <h1>
+        <HeartMark />
+        NivFit
+      </h1>
       <form onSubmit={onSave}>
         <p className="lede">{health.profileName}, set the daily calorie goal for this profile.</p>
         <div className="target-grid">

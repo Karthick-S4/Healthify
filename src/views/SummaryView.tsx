@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { CheatToggle } from '../components/CheatToggle';
-import { IconFlame } from '../components/Icons';
-import { Ring } from '../components/Ring';
+import { HeartMark } from '../components/Icons';
+import { BAND_NUM, Ring, ringBand } from '../components/Ring';
+import { StreakSummary } from '../components/StreakSummary';
 import { TrendChart } from '../components/TrendChart';
 import { targetForDay } from '../lib/budget';
 import { addDays, formatLong, formatShort, todayISO, weekRange } from '../lib/dates';
@@ -9,7 +10,6 @@ import { formatKcal } from '../lib/format';
 import { measureRank } from '../lib/measures';
 import { cheatDates } from '../lib/streaks';
 import { useHealth } from '../state';
-import { useStreaks } from './StreaksView';
 
 type SummaryViewProps = {
   onOpen: (view: 'food' | 'move' | 'body' | 'period' | 'more' | 'streaks') => void;
@@ -39,7 +39,6 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
   const eaten = data.logs.filter((log) => log.date === today).reduce((sum, log) => sum + log.kcal, 0);
 
   const cheatToday = useMemo(() => cheatDates(data.cheatDays), [data.cheatDays]).has(today);
-  const streaks = useStreaks();
 
   const weights = useMemo(() => [...data.weights].sort((a, b) => (a.date < b.date ? -1 : 1)), [data.weights]);
   const latestWeight = weights[weights.length - 1];
@@ -66,7 +65,10 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
     <div className="page summary-page">
       <header className="topbar">
         <div>
-          <h1 className="brand-sm">Healthify</h1>
+          <h1 className="brand-sm">
+            <HeartMark />
+            NivFit
+          </h1>
           <p className="greeting">
             {greeting(new Date().getHours())}
             {health.profileName ? `, ${health.profileName}` : ''}
@@ -83,20 +85,7 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
         </p>
       )}
 
-      <button type="button" className="card streak-kpi" onClick={() => onOpen('streaks')} aria-label={`Streaks: ${streaks.map((streak) => `${streak.title} ${plural(streak.days, 'day')}`).join(', ')}. Open details`}>
-        <span className="streak-kpi-icon">
-          <IconFlame />
-        </span>
-        {streaks.map((streak) => (
-          <span key={streak.id} className={streak.warn ? 'streak-kpi-item warn' : 'streak-kpi-item'}>
-            <strong>
-              {streak.days}
-              <span> {streak.days === 1 ? 'day' : 'days'}</span>
-            </strong>
-            <small>{streak.title}</small>
-          </span>
-        ))}
-      </button>
+      <StreakSummary onOpen={() => onOpen('streaks')} />
 
       <CheatToggle />
 
@@ -104,13 +93,13 @@ export function SummaryView({ onOpen }: SummaryViewProps) {
         <div className="hero-ring">
           <Ring eaten={eaten} target={target} cheat={cheatToday} />
           <div className="ring-copy">
-            <strong className={cheatToday ? 'cheat-num' : eaten > target ? 'over-num' : undefined}>{formatKcal(eaten)}</strong>
+            <strong className={cheatToday ? 'cheat-num' : BAND_NUM[ringBand(eaten, target)]}>{formatKcal(eaten)}</strong>
             <span>{cheatToday ? 'kcal eaten' : `of ${formatKcal(target)}`}</span>
           </div>
         </div>
         <div className="hero-copy">
           <p className="eyebrow">{cheatToday ? 'Cheat day' : 'Calories today'}</p>
-          <p className={cheatToday ? 'hero-left cheat-num' : eaten > target ? 'hero-left over' : 'hero-left'}>
+          <p className={cheatToday ? 'hero-left cheat-num' : ringBand(eaten, target) === 'over' ? 'hero-left way-over' : eaten > target ? 'hero-left over' : 'hero-left'}>
             {cheatToday
               ? 'Target is off today'
               : eaten > target

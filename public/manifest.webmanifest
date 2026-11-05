@@ -1,6 +1,6 @@
 {
-  "name": "Healthify",
-  "short_name": "Healthify",
+  "name": "NivFit",
+  "short_name": "NivFit",
   "description": "A personal calorie log that stays on this phone.",
   "scope": "./",
   "display": "standalone",

@@ -204,7 +204,7 @@ export async function lookupCalories(name: string, foods: Food[], signal?: Abort
   const indian = indianWithVariants(corrected);
   if (indian) return indian;
   const dish = estimateDish(corrected);
-  if (dish) return { ...dish, source: 'Healthify estimate' };
+  if (dish) return { ...dish, source: 'NivFit estimate' };
   const cached = readCache(corrected);
   if (cached) return cached;
   const [usda, off] = await Promise.all([fetchUsda(corrected, signal), fetchOpenFoodFacts(corrected, signal)]);
@@ -219,7 +219,7 @@ export async function lookupCalories(name: string, foods: Food[], signal?: Abort
   return {
     name: local.name,
     kcalPer100g: local.kcalPer100g,
-    source: 'similar foods in Healthify',
-    detail: 'similar foods already saved in Healthify',
+    source: 'similar foods in NivFit',
+    detail: 'similar foods already saved in NivFit',
   };
 }

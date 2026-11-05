@@ -34,7 +34,7 @@ describe('meal ideas', () => {
     expect(previewIdea('maggi 250 kcal', BUILT_IN_FOODS)?.kcal).toBe(250);
   });
 
-  it('flags foods Healthify does not know', () => {
+  it('flags foods NivFit does not know', () => {
     expect(previewIdea('2 chapati, zzqx', BUILT_IN_FOODS)?.unknown).toEqual(['zzqx']);
     expect(previewIdea('2 chapati, tofu curry', BUILT_IN_FOODS)?.unknown).toEqual([]);
   });

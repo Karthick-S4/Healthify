@@ -1,3 +1,4 @@
+import { newId } from '../lib/id';
 import { useMemo, useState, type FormEvent } from 'react';
 import { DevicesCard } from '../components/DevicesCard';
 import { BUILT_IN_FOODS } from '../data/foods';
@@ -109,7 +110,7 @@ export function MoreView() {
     if (clash) return fail(`That overlaps ${formatRange(clash.start, clash.end)}. Change the dates or edit that range.`);
     health.saveRange({
       ...draftRange,
-      id: rangeId ?? crypto.randomUUID(),
+      id: rangeId ?? newId(),
       daily: draftRange.daily == null ? null : Math.round(draftRange.daily),
       week: draftRange.week == null ? null : Math.round(draftRange.week),
     });
@@ -267,7 +268,7 @@ export function MoreView() {
         <p className="help">Portions are estimates. Search to change one, and the next log uses the new number.</p>
         <input value={query} aria-label="Search foods" onChange={(event) => setQuery(event.target.value)} />
         {visibleFoods.length === 0 ? (
-          <p className="empty">{query ? 'No food by that name.' : 'Foods you teach Healthify show up here.'}</p>
+          <p className="empty">{query ? 'No food by that name.' : 'Foods you teach NivFit show up here.'}</p>
         ) : (
           <ul className="food-list">
             {visibleFoods.map((food) => {

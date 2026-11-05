@@ -43,22 +43,29 @@ function encodePng(size, pixels) {
   ]);
 }
 
-function colorAt(nx, ny) {
-  const radius = 0.22;
-  const dx = Math.abs(nx - 0.5) - (0.5 - radius);
-  const dy = Math.abs(ny - 0.5) - (0.5 - radius);
-  const outside = Math.min(Math.max(dx, dy), 0) + Math.hypot(Math.max(dx, 0), Math.max(dy, 0));
-  if (outside > 0) return [0, 0, 0, 0];
+function inHeart(nx, ny) {
+  const scale = 0.25;
+  const x = (nx - 0.5) / scale;
+  const y = -(ny - 0.5) / scale + 0.12;
+  return (x * x + y * y - 1) ** 3 - x * x * y ** 3 <= 0;
+}
 
-  const cx = nx - 0.5;
-  const cy = ny - 0.5;
-  const distance = Math.hypot(cx, cy);
-  let angle = Math.atan2(cy, cx) + Math.PI / 2;
-  if (angle < 0) angle += Math.PI * 2;
-  if (distance <= 0.3 && distance >= 0.2 && angle <= Math.PI * 1.55) return [255, 250, 251, 255];
-  if (distance < 0.065) return [255, 250, 251, 255];
+function colorAt(nx, ny) {
+  if (inHeart(nx, ny)) return [255, 250, 251, 255];
   const t = (nx + ny) / 2;
-  return [Math.round(244 + (199 - 244) * t), Math.round(182 + (77 - 182) * t), Math.round(166 + (110 - 166) * t), 255];
+  let covered = 0;
+  const taps = 12;
+  for (let tap = 0; tap < taps; tap += 1) {
+    const angle = (tap / taps) * Math.PI * 2;
+    if (inHeart(nx - Math.cos(angle) * 0.035, ny - 0.03 - Math.sin(angle) * 0.035)) covered += 1;
+  }
+  const shade = 1 - 0.14 * (covered / taps);
+  return [
+    Math.round((244 + (199 - 244) * t) * shade),
+    Math.round((182 + (77 - 182) * t) * shade),
+    Math.round((166 + (110 - 166) * t) * shade),
+    255,
+  ];
 }
 
 function render(size) {

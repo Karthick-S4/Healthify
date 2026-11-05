@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { DevicesCard } from '../components/DevicesCard';
+import { HeartMark } from '../components/Icons';
 import { isProfileName } from '../lib/storage';
 import { useHealth } from '../state';
 
@@ -37,7 +38,10 @@ export function LockView() {
 
   return (
     <div className="lock">
-      <h1>Healthify</h1>
+      <h1>
+        <HeartMark />
+        NivFit
+      </h1>
       {showCreate ? (
         <form onSubmit={onCreate}>
           <p className="lede">

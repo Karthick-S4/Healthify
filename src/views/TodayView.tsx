@@ -1,9 +1,10 @@
+import { newId } from '../lib/id';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { CheatToggle } from '../components/CheatToggle';
 import { MealEditor } from '../components/MealEditor';
 import { MealGroups } from '../components/MealGroups';
 import { MealPicker } from '../components/MealPicker';
-import { Ring } from '../components/Ring';
+import { BAND_NUM, Ring, ringBand } from '../components/Ring';
 import { buildReports, targetForDay, tightestRoom, type RoomReport } from '../lib/budget';
 import { eachDate, formatLong, formatShort, formatWeekday, todayISO, weekRange } from '../lib/dates';
 import { formatCount, formatKcal } from '../lib/format';
@@ -263,7 +264,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       const name = displayName(nameDraft.trim() || current.name);
       const corrected = correctQuery(current.name, health.foods);
       const food: Food = {
-        id: crypto.randomUUID(),
+        id: newId(),
         name,
         group: 'Yours',
         aliases: [...new Set([current.name.toLowerCase(), corrected, name.toLowerCase()].filter(Boolean))],
@@ -357,7 +358,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       <div className="ring-block">
         <Ring eaten={eaten} target={target} cheat={cheatToday} />
         <div className="ring-copy">
-          <strong className={cheatToday ? 'cheat-num' : eaten > target ? 'over-num' : undefined}>{formatKcal(eaten)}</strong>
+          <strong className={cheatToday ? 'cheat-num' : BAND_NUM[ringBand(eaten, target)]}>{formatKcal(eaten)}</strong>
           <span>{cheatToday ? 'kcal eaten' : `of ${formatKcal(target)}`}</span>
         </div>
       </div>
@@ -500,7 +501,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
                 </p>
               )}
               {!looking && !lookup && (
-                <p className="help">No listing turned up. Type the calories and the grams or ml. Healthify remembers them, and you can change the meal later.</p>
+                <p className="help">No listing turned up. Type the calories and the grams or ml. NivFit remembers them, and you can change the meal later.</p>
               )}
               {!looking && (
                 <>

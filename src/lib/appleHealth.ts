@@ -2,6 +2,7 @@ import { ACTIVE_STEPS } from './streaks';
 import type { ActivityEntry, AppData, HealthDay, ProfileBook } from '../types';
 
 const STEPS_PER_MINUTE = 100;
+const WALK_LOG_DELAY_MS = 5 * 60 * 1000;
 
 type Kind = 'steps' | 'energy' | 'exercise' | 'stand' | 'workout';
 
@@ -302,7 +303,7 @@ function applyResult(data: AppData, result: FileResult, fileName: string, now: s
     if (index >= 0) activities[index] = entry;
     else activities.push(entry);
   }
-  logStepWalks(activities, health, data.removedLogIds, localDay(Date.parse(now)));
+  logStepWalks(activities, health, data.removedLogIds, walkCutoff(now));
   return { ...data, health, activities, healthFiles: [...data.healthFiles, fileName].slice(-400) };
 }
 
@@ -310,24 +311,45 @@ export function stepWalkId(day: string): string {
   return `apple-steps-${day}`;
 }
 
-function logStepWalks(activities: ActivityEntry[], health: Record<string, HealthDay>, removed: string[], today: string) {
+function walkCutoff(now: string): string {
+  return localDay(Date.parse(now) - WALK_LOG_DELAY_MS);
+}
+
+function logStepWalks(activities: ActivityEntry[], health: Record<string, HealthDay>, removed: string[], today: string): boolean {
+  let changed = false;
   for (const [day, totals] of Object.entries(health)) {
     if (day >= today || totals.steps <= ACTIVE_STEPS) continue;
     const id = stepWalkId(day);
     if (removed.includes(id)) continue;
     const index = activities.findIndex((entry) => entry.id === id);
+    const minutes = Math.max(1, Math.round(totals.steps / STEPS_PER_MINUTE));
+    if (index >= 0 && activities[index].steps === totals.steps && activities[index].minutes === minutes) continue;
     const entry: ActivityEntry = {
       id,
       date: day,
       name: 'Walking',
-      minutes: Math.max(1, Math.round(totals.steps / STEPS_PER_MINUTE)),
+      minutes,
       steps: totals.steps,
       source: 'apple',
       createdAt: index >= 0 ? activities[index].createdAt : totals.updatedAt,
     };
     if (index >= 0) activities[index] = entry;
     else activities.push(entry);
+    changed = true;
   }
+  return changed;
+}
+
+export function logFinishedWalks(book: ProfileBook, now = new Date().toISOString()): ProfileBook {
+  const cutoff = walkCutoff(now);
+  let changed = false;
+  const profiles = book.profiles.map((profile) => {
+    const activities = [...profile.data.activities];
+    if (!logStepWalks(activities, profile.data.health, profile.data.removedLogIds, cutoff)) return profile;
+    changed = true;
+    return { ...profile, updatedAt: now, data: { ...profile.data, activities } };
+  });
+  return changed ? { ...book, profiles, updatedAt: now } : book;
 }
 
 export function importedHealthFiles(book: ProfileBook): Set<string> {

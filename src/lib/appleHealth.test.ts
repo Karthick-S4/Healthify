@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHealthFiles, healthFileTime, healthNumber, readHealthFile, stepWalkId } from './appleHealth';
+import { applyHealthFiles, healthFileTime, healthNumber, logFinishedWalks, readHealthFile, stepWalkId } from './appleHealth';
 import { freshData, normalizeBook } from './storage';
 
 const WATCH = 'Niv’s Apple Watch';
@@ -129,6 +129,19 @@ describe('apple health import', () => {
     expect(data.activities).toEqual([
       expect.objectContaining({ id: stepWalkId('2026-11-05'), date: '2026-11-05', name: 'Walking', steps: 4200, minutes: 42, source: 'apple' }),
     ]);
+  });
+
+  it('waits until 12:05 AM before logging yesterday’s walk', () => {
+    const night = { name: '20261106-000200', body: 'Profile: Niv\nDate: 2026-11-05\nSteps: 4200' };
+    const at = (minute: number) => new Date(2026, 10, 6, 0, minute).toISOString();
+    const early = applyHealthFiles(bookWith('Niv'), [night], at(3)).book;
+    expect(early.profiles[0].data.health['2026-11-05'].steps).toBe(4200);
+    expect(early.profiles[0].data.activities).toEqual([]);
+    expect(logFinishedWalks(early, at(4))).toBe(early);
+
+    const later = logFinishedWalks(early, at(5));
+    expect(later.profiles[0].data.activities).toEqual([expect.objectContaining({ id: stepWalkId('2026-11-05'), steps: 4200, minutes: 42 })]);
+    expect(logFinishedWalks(later, at(30))).toBe(later);
   });
 
   it('skips walking entries at or under 2,000 steps, and ones she deleted', () => {

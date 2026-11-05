@@ -1,6 +1,6 @@
 import { newId } from './lib/id';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { applyHealthFiles, importedHealthFiles } from './lib/appleHealth';
+import { applyHealthFiles, importedHealthFiles, logFinishedWalks } from './lib/appleHealth';
 import { captureLinkKey, deviceLink, pullDiary, pullHealthFiles, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods, sharedTweakOn } from './lib/foods';
@@ -169,6 +169,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async (): Promise<SyncStatus> => {
+    setBook((current) => logFinishedWalks(current));
     const result = await pullDiary();
     setSync(statusOf(result));
     if (result.kind !== 'ok') return statusOf(result);
@@ -187,6 +188,7 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       setHealthIssue(unmatched.length > 0);
       setBook((current) => applyHealthFiles(current, files).book);
     }
+    setBook((current) => logFinishedWalks(current));
     return 'ok';
   }, []);
 

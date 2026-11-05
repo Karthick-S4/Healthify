@@ -55,6 +55,22 @@ export type CheatDay = {
   createdAt: string;
 };
 
+export type MealSlot = 'morning' | 'midday' | 'snack' | 'evening';
+
+export type MealIdea = {
+  id: string;
+  title: string;
+  query: string;
+  slot: MealSlot;
+  createdAt: string;
+};
+
+export type HiddenIdea = {
+  id: string;
+  key: string;
+  createdAt: string;
+};
+
 export type TargetPlan = {
   from: string;
   daily: number;
@@ -96,6 +112,8 @@ export type AppData = {
   measures: MeasureEntry[];
   activities: ActivityEntry[];
   cheatDays: CheatDay[];
+  customIdeas: MealIdea[];
+  hiddenIdeas: HiddenIdea[];
   removedLogIds: string[];
   removedFoodIds: string[];
   removedTweakIds: string[];

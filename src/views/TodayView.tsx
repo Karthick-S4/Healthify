@@ -86,7 +86,9 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
 
   const reports = useMemo(() => buildReports(health.data, today, today), [health.data, today]);
   const tight = useMemo(() => tightestRoom(health.data, today), [health.data, today]);
-  const todayLogs = health.data.logs.filter((log) => log.date === today).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const day = picked > today ? today : picked;
+  const pastDay = day !== today;
+  const dayLogs = health.data.logs.filter((log) => log.date === day).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const target = targetForDay(health.data, today);
   const eaten = reports.day.eaten;
   const cheat = cheatDates(health.data.cheatDays);
@@ -137,9 +139,11 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       room: tight.room,
       hour: new Date().getHours(),
       light,
+      custom: health.data.customIdeas,
+      hidden: new Set(health.data.hiddenIdeas.map((entry) => entry.key)),
     });
     return mixedIdeas(all, 3);
-  }, [tight, eaten, target, health.foods, health.data.logs, today, light]);
+  }, [tight, eaten, target, health.foods, health.data.logs, health.data.customIdeas, health.data.hiddenIdeas, today, light]);
 
   const unknown = queue[0]?.kind === 'unknown' ? queue[0] : null;
   const unknownKey = unknown ? `${unknown.name}|${unknown.count}|${unknown.grams ?? ''}|${queue.length}` : '';
@@ -172,7 +176,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
     if (hits.length === 0) return;
     const ids = health.addLogs(
       hits.map((hit) => ({
-        date: today,
+        date: day,
         title: hit.title,
         grams: hit.grams,
         kcal: hit.kcal,
@@ -266,7 +270,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       };
       health.addCustomFood(food);
       const title = `${name}, ${Math.round(grams)} ${unit}`;
-      const ids = health.addLogs([{ date: today, title, grams, kcal, outside: current.outside, foodId: food.id }]);
+      const ids = health.addLogs([{ date: day, title, grams, kcal, outside: current.outside, foodId: food.id }]);
       health.setUndo({ ids, message: `Added ${title} · ${formatKcal(kcal)} kcal` });
     }
     const rest = queue.slice(1);
@@ -413,6 +417,14 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
           </div>
         </div>
         {preview && <p className="preview">{preview}</p>}
+        {pastDay && (
+          <p className="past-day">
+            Adding to {formatWeekday(day)} {formatShort(day)}.{' '}
+            <button type="button" className="text-button" onClick={() => setPicked(today)}>
+              Back to today
+            </button>
+          </p>
+        )}
         <div className="composer-actions">
           <button type="button" className={ateOut ? 'pill on' : 'pill'} aria-pressed={ateOut} onClick={() => setAteOut((value) => !value)}>
             Ate out
@@ -437,6 +449,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
               type="button"
               className={picked === iso ? 'strip-col on' : 'strip-col'}
               onClick={() => setPicked(iso)}
+              disabled={iso > today}
               aria-pressed={picked === iso}
               aria-label={`${formatWeekday(iso)} ${formatShort(iso)}, ${hasLogs ? `${Math.round(dayEaten)} of ${Math.round(dayTarget)} calories` : 'no log'}`}
             >
@@ -559,12 +572,19 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
       )}
 
       <section className="meals">
-        <h2>Today</h2>
-        {todayLogs.length === 0 ? (
-          <p className="empty">Nothing logged yet. Type the food, then the grams or ml beside it.</p>
+        <div className="streak-head">
+          <h2>{pastDay ? `${formatWeekday(day)} ${formatShort(day)}` : 'Today'}</h2>
+          {pastDay && (
+            <button type="button" className="text-button" onClick={() => setPicked(today)}>
+              Back to today
+            </button>
+          )}
+        </div>
+        {dayLogs.length === 0 ? (
+          <p className="empty">{pastDay ? 'Nothing logged on this day. Add it above if you forgot.' : 'Nothing logged yet. Type the food, then the grams or ml beside it.'}</p>
         ) : (
           <ul className="meal-list">
-            {todayLogs.map((log) => (
+            {dayLogs.map((log) => (
               <li key={log.id}>
                 <button type="button" className="meal" onClick={() => setEditing(log)}>
                   <span>
@@ -579,7 +599,7 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
         )}
       </section>
 
-      {ideas.length > 0 && (
+      {ideas.length > 0 && !pastDay && (
         <section className="card suggest">
           <h2>Ideas for now</h2>
           <ul className="suggest-list">
@@ -589,6 +609,9 @@ export function TodayView({ onOpenIdeas, onOpenMore }: TodayViewProps) {
                   <p className="eyebrow">{KIND_LABEL[idea.kind]}</p>
                   <p className="suggest-title">{idea.title}</p>
                   <p className="note">{idea.detail}</p>
+                  <button type="button" className="text-button idea-hide" onClick={() => health.removeIdea(idea.title, idea.customId)}>
+                    {idea.customId ? 'Delete this idea' : 'Not for me'}
+                  </button>
                 </div>
                 <button
                   type="button"

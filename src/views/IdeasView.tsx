@@ -1,11 +1,117 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { buildReports, type RoomReport } from '../lib/budget';
 import { todayISO } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { parseFoodList, type FoodHit } from '../lib/parseFood';
-import { KIND_LABEL, proteinEaten, suggestMeals } from '../lib/suggestions';
+import { ideaKey, KIND_LABEL, previewIdea, proteinEaten, slotForHour, suggestMeals } from '../lib/suggestions';
 import { useHealth } from '../state';
-import type { PeriodKind } from '../types';
+import type { MealSlot, PeriodKind } from '../types';
+
+const SLOT_LABEL: Record<MealSlot, string> = { morning: 'Breakfast', midday: 'Lunch', snack: 'Snack', evening: 'Dinner' };
+
+function AddIdea() {
+  const health = useHealth();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [query, setQuery] = useState('');
+  const [slot, setSlot] = useState<MealSlot>(() => slotForHour(new Date().getHours()));
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<string | null>(null);
+  const preview = useMemo(() => (query.trim() ? previewIdea(query, health.foods) : null), [query, health.foods]);
+  const mine = health.data.customIdeas;
+
+  function save(event: FormEvent) {
+    event.preventDefault();
+    if (!preview) {
+      setError('Type the foods in this meal, like 2 chapati, tofu curry.');
+      return;
+    }
+    if (preview.unknown.length > 0) {
+      setError(`Healthify doesn’t know ${preview.unknown.join(', ')} yet. Log it once from the Food tab, then add this idea.`);
+      return;
+    }
+    const name = title.trim() || query.trim().replace(/^\w/, (letter) => letter.toUpperCase());
+    if (mine.some((idea) => ideaKey(idea.title) === ideaKey(name))) {
+      setError('You already have an idea with this name.');
+      return;
+    }
+    health.addIdea(name.slice(0, 60), query, slot);
+    setSaved(`Saved “${name}” to ${SLOT_LABEL[slot].toLowerCase()} ideas.`);
+    setTitle('');
+    setQuery('');
+    setError(null);
+  }
+
+  return (
+    <section className="card add-idea">
+      <div className="streak-head">
+        <h2>Your own ideas</h2>
+        <button type="button" className="text-button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+          {open ? 'Close' : mine.length > 0 ? `Add or edit (${mine.length})` : 'Add one'}
+        </button>
+      </div>
+      {!open && <p className="note">Save meals you like, and they show first when they fit what’s left.</p>}
+      {open && (
+        <>
+          <form className="inline-form" onSubmit={save}>
+            <label className="field-label" htmlFor="idea-foods">
+              Foods in this meal
+            </label>
+            <input
+              id="idea-foods"
+              value={query}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="2 chapati, tofu curry, cucumber"
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setError(null);
+                setSaved(null);
+              }}
+            />
+            {preview && preview.unknown.length === 0 && <p className="preview">{preview.detail}</p>}
+            <label className="field-label" htmlFor="idea-name">
+              Name (optional)
+            </label>
+            <input id="idea-name" value={title} autoCapitalize="sentences" placeholder="Tofu chapati lunch" onChange={(event) => setTitle(event.target.value)} />
+            <div className="alt-row" role="group" aria-label="When">
+              {(Object.keys(SLOT_LABEL) as MealSlot[]).map((item) => (
+                <button key={item} type="button" className={slot === item ? 'pill pick on' : 'pill pick'} aria-pressed={slot === item} onClick={() => setSlot(item)}>
+                  {SLOT_LABEL[item]}
+                </button>
+              ))}
+            </div>
+            <button className="primary" type="submit">
+              Save idea
+            </button>
+            {error && <p className="error">{error}</p>}
+            {saved && <p className="preview">{saved}</p>}
+          </form>
+          {mine.length > 0 && (
+            <ul className="meal-list">
+              {mine.map((idea) => (
+                <li key={idea.id}>
+                  <div className="meal">
+                    <span>
+                      <strong>{idea.title}</strong>
+                      <small>
+                        {SLOT_LABEL[idea.slot]} · {idea.query}
+                      </small>
+                    </span>
+                    <button type="button" className="icon-button" aria-label={`Delete ${idea.title}`} onClick={() => health.removeIdea(idea.title, idea.id)}>
+                      ×
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 type IdeasViewProps = {
   onOpenMore: () => void;
@@ -48,13 +154,16 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
       room: report.room,
       hour: new Date().getHours(),
       light,
+      custom: health.data.customIdeas,
+      hidden: new Set(health.data.hiddenIdeas.map((entry) => entry.key)),
     });
-  }, [missingCustom, report, health.foods, health.data.logs, today, light]);
+  }, [missingCustom, report, health.foods, health.data.logs, health.data.customIdeas, health.data.hiddenIdeas, today, light]);
+  const hiddenCount = health.data.hiddenIdeas.length;
   const protein = useMemo(
     () => proteinEaten(health.data.logs.filter((log) => log.date === today), health.foods),
     [health.data.logs, health.foods, today],
   );
-  const groups = (['protein', 'fit', 'fill', 'usual', 'more', 'light'] as const)
+  const groups = (['yours', 'protein', 'fit', 'fill', 'usual', 'more', 'light'] as const)
     .map((kind) => ({ kind, items: ideas.filter((idea) => idea.kind === kind) }))
     .filter((group) => group.items.length > 0);
 
@@ -133,12 +242,28 @@ export function IdeasView({ onOpenMore }: IdeasViewProps) {
                         >
                           Add this
                         </button>
+                        <button
+                          type="button"
+                          className="text-button idea-hide"
+                          onClick={() => health.removeIdea(idea.title, idea.customId)}
+                        >
+                          {idea.customId ? 'Delete this idea' : 'Not for me'}
+                        </button>
                       </li>
                     ))}
                   </ul>
                 </section>
               ))}
             </div>
+          )}
+          <AddIdea />
+          {hiddenCount > 0 && (
+            <p className="help">
+              {hiddenCount === 1 ? '1 idea is hidden.' : `${hiddenCount} ideas are hidden.`}{' '}
+              <button type="button" className="text-button" onClick={health.restoreIdeas}>
+                Show them again
+              </button>
+            </p>
           )}
           <p className="help">Suggestions are home meals. Calories are estimates from standard portions, and you can correct any food in More.</p>
         </div>

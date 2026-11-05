@@ -1,5 +1,22 @@
 import { eachDate, todayISO } from './dates';
-import type { ActivityEntry, AppData, CheatDay, CustomRange, Food, FoodTweak, LogEntry, MeasureEntry, Profile, ProfileBook, ProfileRecord, TargetPlan, WeightEntry } from '../types';
+import type {
+  ActivityEntry,
+  AppData,
+  CheatDay,
+  CustomRange,
+  Food,
+  FoodTweak,
+  HiddenIdea,
+  LogEntry,
+  MealIdea,
+  MealSlot,
+  MeasureEntry,
+  Profile,
+  ProfileBook,
+  ProfileRecord,
+  TargetPlan,
+  WeightEntry,
+} from '../types';
 
 export const STORAGE_KEY = 'healthify.v1';
 export const BOOK_KEY = 'healthify.shared.v1';
@@ -20,6 +37,8 @@ export function freshData(): AppData {
     measures: [],
     activities: [],
     cheatDays: [],
+    customIdeas: [],
+    hiddenIdeas: [],
     removedLogIds: [],
     removedFoodIds: [],
     removedTweakIds: [],
@@ -39,6 +58,26 @@ function entryBase(value: unknown): { id: string; date: string; createdAt: strin
 function asCheatDay(value: unknown): CheatDay | null {
   const base = entryBase(value);
   return base ? { id: base.id, date: base.date, createdAt: base.createdAt } : null;
+}
+
+const SLOTS: MealSlot[] = ['morning', 'midday', 'snack', 'evening'];
+
+function asMealIdea(value: unknown): MealIdea | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== 'string' || typeof raw.title !== 'string' || typeof raw.query !== 'string') return null;
+  const title = raw.title.trim().slice(0, 60);
+  const query = raw.query.trim().slice(0, 200);
+  if (!title || !query) return null;
+  const slot = SLOTS.includes(raw.slot as MealSlot) ? (raw.slot as MealSlot) : 'midday';
+  return { id: raw.id, title, query, slot, createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString() };
+}
+
+function asHiddenIdea(value: unknown): HiddenIdea | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== 'string' || typeof raw.key !== 'string' || !raw.key.trim()) return null;
+  return { id: raw.id, key: raw.key.trim().toLocaleLowerCase(), createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString() };
 }
 
 function asWeight(value: unknown): WeightEntry | null {
@@ -204,6 +243,8 @@ export function normalizeData(value: unknown): AppData {
     measures: listOf(data.measures, asMeasure),
     activities: listOf(data.activities, asActivity),
     cheatDays: listOf(data.cheatDays, asCheatDay),
+    customIdeas: listOf(data.customIdeas, asMealIdea),
+    hiddenIdeas: listOf(data.hiddenIdeas, asHiddenIdea),
     removedLogIds: asIds(data.removedLogIds),
     removedFoodIds: asIds(data.removedFoodIds),
     removedTweakIds: asIds(data.removedTweakIds),

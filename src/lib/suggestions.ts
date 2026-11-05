@@ -1,10 +1,10 @@
-import type { Food, LogEntry } from '../types';
+import type { Food, LogEntry, MealIdea, MealSlot } from '../types';
 import { addDays } from './dates';
 import { proteinFor } from './foods';
 import { formatKcal } from './format';
 import { parseFoodList, type FoodHit } from './parseFood';
 
-export type MealSlot = 'morning' | 'midday' | 'snack' | 'evening';
+export type { MealSlot };
 
 export type MealTemplate = {
   title: string;
@@ -115,7 +115,7 @@ export const MEAL_TEMPLATES: MealTemplate[] = [
   { title: 'Chapati and ladies finger fry', query: '2 chapati, ladies finger fry, 1 bowl dal', slot: 'evening' },
 ];
 
-export type SuggestionKind = 'protein' | 'fit' | 'fill' | 'usual' | 'more' | 'light';
+export type SuggestionKind = 'yours' | 'protein' | 'fit' | 'fill' | 'usual' | 'more' | 'light';
 
 export type Suggestion = {
   title: string;
@@ -124,9 +124,24 @@ export type Suggestion = {
   kcal: number;
   protein: number | null;
   kind: SuggestionKind;
+  customId?: string;
 };
 
+export function ideaKey(title: string): string {
+  return title.trim().toLocaleLowerCase();
+}
+
+export function previewIdea(query: string, foods: Food[]): { kcal: number; detail: string; unknown: string[] } | null {
+  const parsed = parseFoodList(query, foods);
+  if (parsed.items.length === 0) return null;
+  const hits = parsed.items.filter((item): item is FoodHit => item.kind === 'food');
+  const unknown = parsed.items.flatMap((item) => (item.kind === 'food' ? [] : 'name' in item ? [item.name] : item.kind === 'need-grams' ? [item.food.name] : []));
+  const kcal = hits.reduce((sum, hit) => sum + hit.kcal, 0);
+  return { kcal, detail: `${hits.map((hit) => hit.title).join(', ')} · ${formatKcal(kcal)} kcal`, unknown };
+}
+
 export const KIND_LABEL: Record<SuggestionKind, string> = {
+  yours: 'Your ideas',
   protein: 'More protein',
   fit: 'Fits what’s left',
   fill: 'Fills the day',
@@ -230,20 +245,29 @@ export function suggestMeals(args: {
   room: number;
   hour: number;
   light: boolean;
+  custom?: MealIdea[];
+  hidden?: ReadonlySet<string>;
 }): Suggestion[] {
   const maxKcal = args.light ? 150 : Math.max(0, Math.floor(args.room));
   if (!args.light && maxKcal < 40) return [];
   const slot = slotForHour(args.hour);
   const aim = args.light ? 100 : Math.min(maxKcal * 0.85, SLOT_AIM[slot]);
   const minKcal = args.light ? 0 : Math.min(80, maxKcal);
+  const hidden = args.hidden ?? new Set<string>();
 
-  const candidates: Candidate[] = MEAL_TEMPLATES.flatMap((template) => {
-    const hits = hitsOf(template.query, args.foods);
+  const toCandidate = (title: string, query: string, ideaSlot: MealSlot, customId?: string): Candidate[] => {
+    if (hidden.has(ideaKey(title))) return [];
+    const hits = hitsOf(query, args.foods);
     if (!hits) return [];
-    const idea = suggestionFrom(template.title, template.query, hits, 'fit');
-    if (idea.kcal < minKcal || idea.kcal > maxKcal) return [];
-    return [{ ...idea, slot: template.slot }];
-  });
+    const idea = suggestionFrom(title, query, hits, 'fit');
+    if (idea.kcal > maxKcal || (!customId && idea.kcal < minKcal)) return [];
+    return [{ ...idea, slot: ideaSlot, ...(customId ? { customId } : {}) }];
+  };
+  const own = (args.custom ?? []).flatMap((idea) => toCandidate(idea.title, idea.query, idea.slot, idea.id));
+  const ownTitles = new Set(own.map((idea) => ideaKey(idea.title)));
+  const candidates: Candidate[] = MEAL_TEMPLATES.flatMap((template) =>
+    ownTitles.has(ideaKey(template.title)) ? [] : toCandidate(template.title, template.query, template.slot),
+  );
 
   const taken = new Set<string>();
   const take = (list: Candidate[], kind: SuggestionKind, count: number): Suggestion[] => {
@@ -261,9 +285,15 @@ export function suggestMeals(args: {
   const shuffle = (idea: Candidate) => dailyOrder(args.today, idea.title);
   const closeness = (idea: Candidate, target: number) => Math.round(Math.abs(idea.kcal - target) / 75);
 
+  const yours = take(
+    [...own].sort((a, b) => inSlot(a) - inSlot(b) || shuffle(a) - shuffle(b)),
+    'yours',
+    args.light ? 3 : 6,
+  );
+
   if (args.light) {
     const light = [...candidates].sort((a, b) => Math.round((b.protein ?? 0) / 3) - Math.round((a.protein ?? 0) / 3) || shuffle(a) - shuffle(b));
-    return take(light, 'light', 8);
+    return [...yours, ...take(light, 'light', 8)];
   }
 
   const protein = take(
@@ -291,7 +321,7 @@ export function suggestMeals(args: {
       : [];
 
   const usual = usualSuggestions(args.foods, args.logs, args.today, aim, maxKcal).filter((idea) => {
-    if (taken.has(idea.query)) return false;
+    if (taken.has(idea.query) || hidden.has(ideaKey(idea.title))) return false;
     taken.add(idea.query);
     return true;
   });
@@ -302,7 +332,7 @@ export function suggestMeals(args: {
     12,
   );
 
-  return [...protein, ...fit, ...fill, ...usual, ...more];
+  return [...yours, ...protein, ...fit, ...fill, ...usual, ...more];
 }
 
 export function mixedIdeas(ideas: Suggestion[], count: number): Suggestion[] {

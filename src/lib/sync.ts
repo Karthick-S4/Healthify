@@ -43,6 +43,8 @@ function mergeData(older: AppData, newer: AppData): AppData {
     measures: byId(older.measures, newer.measures),
     activities: byId(older.activities, newer.activities),
     cheatDays: byId(older.cheatDays, newer.cheatDays),
+    customIdeas: byId(older.customIdeas, newer.customIdeas),
+    hiddenIdeas: byId(older.hiddenIdeas, newer.hiddenIdeas),
     removedLogIds,
     removedFoodIds,
     removedTweakIds,

@@ -4,7 +4,7 @@ import { todayISO } from './lib/dates';
 import { allFoods } from './lib/foods';
 import { FIRST_DAY, freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
 import { booksEqual, mergeBooks } from './lib/sync';
-import type { AppData, CustomRange, Food, FoodTweak, LogEntry, ProfileBook, ProfileRecord } from './types';
+import type { AppData, CustomRange, Food, FoodTweak, LogEntry, MealSlot, ProfileBook, ProfileRecord } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Targets = { daily: number; week: number | null; month: number | null };
@@ -60,6 +60,9 @@ type HealthApi = {
   addActivity: (date: string, name: string, minutes: number) => string;
   removeEntries: (ids: string[]) => void;
   setCheatDay: (date: string, on: boolean) => void;
+  addIdea: (title: string, query: string, slot: MealSlot) => void;
+  removeIdea: (title: string, customId?: string) => void;
+  restoreIdeas: () => void;
   undoLast: () => void;
   setUndo: (undo: Undo | null) => void;
   addCustomFood: (food: Food) => void;
@@ -465,6 +468,48 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateData]);
 
+  const addIdea = useCallback(
+    (title: string, query: string, slot: MealSlot) => {
+      updateData((current) => {
+        const key = title.trim().toLocaleLowerCase();
+        const unhidden = current.hiddenIdeas.filter((entry) => entry.key === key).map((entry) => entry.id);
+        return {
+          ...current,
+          customIdeas: [...current.customIdeas, { id: crypto.randomUUID(), title: title.trim(), query: query.trim(), slot, createdAt: new Date().toISOString() }],
+          hiddenIdeas: current.hiddenIdeas.filter((entry) => entry.key !== key),
+          removedLogIds: unique([...current.removedLogIds, ...unhidden]),
+        };
+      });
+    },
+    [updateData],
+  );
+
+  const removeIdea = useCallback(
+    (title: string, customId?: string) => {
+      updateData((current) => {
+        if (customId) {
+          return {
+            ...current,
+            customIdeas: current.customIdeas.filter((idea) => idea.id !== customId),
+            removedLogIds: unique([...current.removedLogIds, customId]),
+          };
+        }
+        const key = title.trim().toLocaleLowerCase();
+        if (current.hiddenIdeas.some((entry) => entry.key === key)) return current;
+        return { ...current, hiddenIdeas: [...current.hiddenIdeas, { id: crypto.randomUUID(), key, createdAt: new Date().toISOString() }] };
+      });
+    },
+    [updateData],
+  );
+
+  const restoreIdeas = useCallback(() => {
+    updateData((current) => ({
+      ...current,
+      hiddenIdeas: [],
+      removedLogIds: unique([...current.removedLogIds, ...current.hiddenIdeas.map((entry) => entry.id)]),
+    }));
+  }, [updateData]);
+
   const setCheatDay = useCallback((date: string, on: boolean) => {
     updateData((current) => {
       const same = current.cheatDays.filter((entry) => entry.date === date);
@@ -594,6 +639,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       addActivity,
       removeEntries,
       setCheatDay,
+      addIdea,
+      removeIdea,
+      restoreIdeas,
       undoLast,
       setUndo,
       addCustomFood,
@@ -631,6 +679,9 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       addActivity,
       removeEntries,
       setCheatDay,
+      addIdea,
+      removeIdea,
+      restoreIdeas,
       undoLast,
       addCustomFood,
       updateCustomFood,

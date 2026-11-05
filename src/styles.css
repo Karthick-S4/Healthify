@@ -506,8 +506,19 @@ input:focus {
   background: var(--glass-soft);
 }
 .idea-row-fields .icon-button { width: 36px; }
-.idea-row-note { font-size: 0.8rem; color: var(--muted); padding-left: 4px; }
-.idea-row-missing { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 8px; align-items: center; }
+.idea-row-note { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 0.8rem; color: var(--muted); padding-left: 4px; }
+.idea-row-note .text-button { padding: 4px 0; font-size: 0.8rem; }
+.idea-kcal { display: inline-flex; align-items: center; gap: 6px; }
+.idea-kcal input { width: 72px; min-height: 34px; padding: 0 8px; border-radius: 10px; text-align: center; font-size: 16px; }
+.idea-kcal-edit {
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  background: var(--glass-soft);
+  color: var(--accent-ink);
+  font-weight: 650;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+}
 .primary, .ghost, .danger, .choice, .pill {
   min-height: 50px;
   border-radius: 999px;

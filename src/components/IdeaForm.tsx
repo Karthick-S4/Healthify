@@ -9,16 +9,27 @@ import type { Food, MealSlot } from '../types';
 import { MealPicker } from './MealPicker';
 
 type Unit = 'serving' | 'g' | 'ml';
-type Row = { key: string; name: string; amount: string; unit: Unit; manual: string };
+type Row = { key: string; name: string; amount: string; unit: Unit; manual: string; editing: boolean };
 type Status =
   | { kind: 'empty' }
-  | { kind: 'known'; hit: FoodHit }
-  | { kind: 'looking' }
-  | { kind: 'found'; lookup: FoodLookup; grams: number; kcal: number }
+  | { kind: 'known'; hit: FoodHit; estimate: number; kcal: number | null }
+  | { kind: 'looking'; grams: number; kcal: number | null }
+  | { kind: 'found'; lookup: FoodLookup; grams: number; estimate: number; kcal: number | null }
   | { kind: 'missing'; grams: number; kcal: number | null };
 
 function blank(): Row {
-  return { key: crypto.randomUUID(), name: '', amount: '', unit: 'serving', manual: '' };
+  return { key: crypto.randomUUID(), name: '', amount: '', unit: 'serving', manual: '', editing: false };
+}
+
+function typedKcal(row: Row): number | null {
+  const value = Number(row.manual);
+  return row.manual.trim() && Number.isFinite(value) && value <= 4000 ? Math.round(value) : null;
+}
+
+function kcalOf(status: Status): number | null {
+  if (status.kind === 'empty') return null;
+  if (status.kind === 'known' || status.kind === 'found') return status.kcal ?? status.estimate;
+  return status.kcal;
 }
 
 function cleanName(name: string): string {
@@ -89,29 +100,29 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
   const statuses: Status[] = rows.map((row, index) => {
     const name = cleanName(row.name);
     if (!name) return { kind: 'empty' };
+    const typed = row.editing ? typedKcal(row) : null;
     const hit = known[index];
-    if (hit) return { kind: 'known', hit };
+    if (hit) return { kind: 'known', hit, estimate: hit.kcal, kcal: typed };
     const key = name.toLowerCase();
-    if (!(key in lookups)) return { kind: 'looking' };
+    if (!(key in lookups)) return { kind: 'looking', grams: gramsFor(row, 100), kcal: typed };
     const lookup = lookups[key];
     if (lookup) {
       const grams = gramsFor(row, lookup.servingGrams ?? 100);
-      return { kind: 'found', lookup, grams, kcal: Math.round((lookup.kcalPer100g * grams) / 100) };
+      return { kind: 'found', lookup, grams, estimate: Math.round((lookup.kcalPer100g * grams) / 100), kcal: typed };
     }
-    const manual = Number(row.manual);
-    return { kind: 'missing', grams: gramsFor(row, 100), kcal: row.manual.trim() && Number.isFinite(manual) ? manual : null };
+    return { kind: 'missing', grams: gramsFor(row, 100), kcal: typedKcal(row) };
   });
 
-  const total = statuses.reduce((sum, status) => {
-    if (status.kind === 'known') return sum + status.hit.kcal;
-    if (status.kind === 'found') return sum + status.kcal;
-    if (status.kind === 'missing') return sum + (status.kcal ?? 0);
-    return sum;
-  }, 0);
+  const total = statuses.reduce((sum, status) => sum + (kcalOf(status) ?? 0), 0);
 
   function update(key: string, patch: Partial<Row>) {
     setRows((current) => current.map((row) => (row.key === key ? { ...row, ...patch } : row)));
     setError(null);
+  }
+
+  function startEditing(row: Row, status: Status) {
+    const start = kcalOf(status);
+    update(row.key, { editing: true, manual: start != null ? String(start) : '' });
   }
 
   function save(event: FormEvent) {
@@ -121,14 +132,14 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
       setError('Add at least one dish.');
       return;
     }
-    const looking = filled.find((item) => item.status.kind === 'looking');
+    const looking = filled.find((item) => item.status.kind === 'looking' && item.status.kcal == null);
     if (looking) {
-      setError(`Still looking up ${cleanName(looking.row.name)}. Try again in a moment.`);
+      setError(`Still looking up ${cleanName(looking.row.name)}. Wait a moment, or type its calories.`);
       return;
     }
-    const missing = filled.find((item) => item.status.kind === 'missing' && (item.status.kcal == null || item.status.kcal < 0 || item.status.kcal > 4000));
-    if (missing) {
-      setError(`Type the calories for ${cleanName(missing.row.name)}, or remove that dish.`);
+    const blankKcal = filled.find((item) => kcalOf(item.status) == null);
+    if (blankKcal) {
+      setError(`Type the calories for ${cleanName(blankKcal.row.name)}, or remove that dish.`);
       return;
     }
     const name = (title.trim() || filled.map((item) => displayName(cleanName(item.row.name))).join(', ')).slice(0, 60);
@@ -137,10 +148,11 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
       return;
     }
     for (const { row, status } of filled) {
-      if (status.kind !== 'found' && status.kind !== 'missing') continue;
+      if (status.kind === 'empty' || status.kind === 'known') continue;
       const typed = cleanName(row.name).toLowerCase();
       const servingGrams = status.kind === 'found' ? (status.lookup.servingGrams ?? 100) : row.unit === 'serving' ? 100 : status.grams;
-      const kcalPer100g = status.kind === 'found' ? status.lookup.kcalPer100g : ((status.kcal ?? 0) / Math.max(status.grams, 1)) * 100;
+      const kcalPer100g =
+        status.kind === 'found' && status.kcal == null ? status.lookup.kcalPer100g : ((kcalOf(status) ?? 0) / Math.max(status.grams, 1)) * 100;
       const food: Food = {
         id: crypto.randomUUID(),
         name: displayName(cleanName(row.name)),
@@ -153,7 +165,8 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
       };
       health.addCustomFood(food);
     }
-    health.addIdea(name, filled.map((item) => partFor(item.row)).join(', '), slot);
+    const parts = filled.map(({ row, status }) => (status.kind === 'known' && status.kcal != null ? `${partFor(row)} ${status.kcal}kcal` : partFor(row)));
+    health.addIdea(name, parts.join(', '), slot);
     onSaved(`Saved “${name}” to ${MEAL_LABEL[slot].toLowerCase()} ideas · ${formatKcal(total)} kcal.`);
     setRows([blank(), blank()]);
     setTitle('');
@@ -176,7 +189,7 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}
-                onChange={(event) => update(row.key, { name: event.target.value })}
+                onChange={(event) => update(row.key, { name: event.target.value, editing: false, manual: '' })}
               />
               <input
                 className="idea-amount"
@@ -197,27 +210,41 @@ export function IdeaForm({ onSaved }: { onSaved: (message: string) => void }) {
                 </button>
               )}
             </div>
-            {status.kind === 'known' && (
-              <p className="idea-row-note">
-                {status.hit.title} · {formatKcal(status.hit.kcal)} kcal
-              </p>
-            )}
-            {status.kind === 'looking' && <p className="idea-row-note">Looking up the calories…</p>}
-            {status.kind === 'found' && (
-              <p className="idea-row-note">
-                About {formatKcal(status.lookup.kcalPer100g)} kcal per 100 g, from {status.lookup.detail} · {formatKcal(status.kcal)} kcal for {Math.round(status.grams)} {row.unit === 'ml' ? 'ml' : 'g'}
-              </p>
-            )}
-            {status.kind === 'missing' && (
-              <div className="idea-row-missing">
-                <p className="idea-row-note">No listing turned up. Type the calories for this amount.</p>
-                <input
-                  aria-label={`Calories for ${cleanName(row.name)}`}
-                  inputMode="numeric"
-                  placeholder="kcal"
-                  value={row.manual}
-                  onChange={(event) => update(row.key, { manual: event.target.value.replace(/[^\d]/g, '') })}
-                />
+            {status.kind !== 'empty' && (
+              <div className="idea-row-note">
+                <span>
+                  {status.kind === 'known' && status.hit.title}
+                  {status.kind === 'looking' && 'Looking up the calories…'}
+                  {status.kind === 'found' &&
+                    `About ${formatKcal(status.lookup.kcalPer100g)} kcal per 100 g, from ${status.lookup.detail}, for ${Math.round(status.grams)} ${row.unit === 'ml' ? 'ml' : 'g'}`}
+                  {status.kind === 'missing' && 'Not found. Type the calories for this amount'}
+                </span>
+                {row.editing || status.kind === 'missing' ? (
+                  <span className="idea-kcal">
+                    <input
+                      aria-label={`Calories for ${cleanName(row.name)}`}
+                      inputMode="numeric"
+                      placeholder="kcal"
+                      value={row.manual}
+                      autoFocus={row.editing}
+                      onChange={(event) => update(row.key, { manual: event.target.value.replace(/[^\d]/g, '') })}
+                    />
+                    kcal
+                    {(status.kind === 'known' || status.kind === 'found') && (
+                      <button type="button" className="text-button" onClick={() => update(row.key, { editing: false, manual: '' })}>
+                        Use {formatKcal(status.estimate)}
+                      </button>
+                    )}
+                  </span>
+                ) : status.kind === 'looking' ? (
+                  <button type="button" className="text-button" onClick={() => startEditing(row, status)}>
+                    Type it myself
+                  </button>
+                ) : (
+                  <button type="button" className="idea-kcal-edit" aria-label={`Edit calories for ${cleanName(row.name)}`} onClick={() => startEditing(row, status)}>
+                    {formatKcal(status.estimate)} kcal ✎
+                  </button>
+                )}
               </div>
             )}
           </div>

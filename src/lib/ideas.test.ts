@@ -26,6 +26,14 @@ describe('meal ideas', () => {
     expect(ideas[0]).toMatchObject({ title: 'Tofu chapati lunch', kind: 'yours', customId: 'i1' });
   });
 
+  it('uses calories she typed for a dish', () => {
+    const plain = previewIdea('1 maggi', BUILT_IN_FOODS);
+    expect(plain?.kcal).toBe(322);
+    expect(previewIdea('1 maggi 400kcal, rice 150g', BUILT_IN_FOODS)?.kcal).toBe(400 + (previewIdea('rice 150g', BUILT_IN_FOODS)?.kcal ?? 0));
+    expect(previewIdea('maggi 250 kcal', BUILT_IN_FOODS)?.unknown).toEqual([]);
+    expect(previewIdea('maggi 250 kcal', BUILT_IN_FOODS)?.kcal).toBe(250);
+  });
+
   it('flags foods Healthify does not know', () => {
     expect(previewIdea('2 chapati, zzqx', BUILT_IN_FOODS)?.unknown).toEqual(['zzqx']);
     expect(previewIdea('2 chapati, tofu curry', BUILT_IN_FOODS)?.unknown).toEqual([]);

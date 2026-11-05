@@ -161,8 +161,12 @@ function invalidAmount(count: number, grams: number): string | null {
   return null;
 }
 
+const KCAL_PATTERN = /\s*[=@-]?\s*(\d+(?:\.\d+)?)\s*(?:kcal|cals?|calories)\s*$/i;
+
 export function parseOne(raw: string, foods: Food[]): ParsedItem | null {
-  const quantity = extractQuantity(raw);
+  const typed = raw.match(KCAL_PATTERN);
+  const kcalOverride = typed && Number(typed[1]) <= 4000 ? Math.round(Number(typed[1])) : null;
+  const quantity = extractQuantity(typed ? raw.slice(0, typed.index) : raw);
   if (!quantity) return null;
   const count = quantity.mode === 'grams' || quantity.mode === 'grams-missing' ? 1 : quantity.count;
   const food = matchFood(quantity.name, foods);
@@ -195,7 +199,7 @@ export function parseOne(raw: string, foods: Food[]): ParsedItem | null {
     kind: 'food',
     food,
     grams,
-    kcal: kcalFor(food, grams),
+    kcal: kcalOverride ?? kcalFor(food, grams),
     title: titleFor(food, quantity, grams),
   };
 }

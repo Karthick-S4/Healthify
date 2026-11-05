@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyHealthFiles, healthFileTime, healthNumber, readHealthFile } from './appleHealth';
+import { applyHealthFiles, healthFileTime, healthNumber, readHealthFile, stepWalkId } from './appleHealth';
 import { freshData, normalizeBook } from './storage';
 
 const WATCH = 'Niv’s Apple Watch';
@@ -117,6 +117,28 @@ describe('apple health import', () => {
 
     const stale = applyHealthFiles(later, [{ name: '20261105-120000', body: 'Profile: Niv\nSteps: 5000' }], '2026-11-05T16:05:00.000Z').book;
     expect(stale.profiles[0].data.health['2026-11-05'].steps).toBe(400);
+  });
+
+  it('logs a Walking entry for a finished day over 2,000 steps, but not for today', () => {
+    const night = { name: '20261106-000200', body: 'Profile: Niv\nDate: 2026-11-05\nSteps: 2400\n1800\nActive Calories: 120' };
+    const today = { name: '20261106-130000', body: 'Profile: Niv\nSteps: 3500' };
+    const book = applyHealthFiles(bookWith('Niv'), [night, today], '2026-11-06T08:00:00.000Z').book;
+    const data = book.profiles[0].data;
+    expect(data.health['2026-11-05'].steps).toBe(4200);
+    expect(data.health['2026-11-06'].steps).toBe(3500);
+    expect(data.activities).toEqual([
+      expect.objectContaining({ id: stepWalkId('2026-11-05'), date: '2026-11-05', name: 'Walking', steps: 4200, minutes: 42, source: 'apple' }),
+    ]);
+  });
+
+  it('skips walking entries at or under 2,000 steps, and ones she deleted', () => {
+    const low = { name: '20261106-000200', body: 'Profile: Niv\nDate: 2026-11-05\nSteps: 2000' };
+    expect(applyHealthFiles(bookWith('Niv'), [low], '2026-11-06T08:00:00.000Z').book.profiles[0].data.activities).toEqual([]);
+
+    const book = bookWith('Niv');
+    const removed = { ...book, profiles: book.profiles.map((profile) => ({ ...profile, data: { ...profile.data, removedLogIds: [stepWalkId('2026-11-05')] } })) };
+    const high = { name: '20261106-000300', body: 'Profile: Niv\nDate: 2026-11-05\nSteps: 6000' };
+    expect(applyHealthFiles(removed, [high], '2026-11-06T08:00:00.000Z').book.profiles[0].data.activities).toEqual([]);
   });
 
   it('takes the profile and day from the file name when the text has none', () => {

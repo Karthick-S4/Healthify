@@ -22,6 +22,15 @@ describe('activity streak', () => {
     const list = [move('b', '2026-11-03'), move('c', '2026-11-02')];
     expect(activityStreak(list, '2026-11-04')).toEqual({ days: 2, doneToday: false });
   });
+
+  it('counts days over 2,000 Apple Health steps as active', () => {
+    const steps = (count: number) => ({ steps: count, activeKcal: 0, exerciseMin: 0, standMin: 0, updatedAt: '2026-11-04T18:00:00.000Z' });
+    const health = { '2026-11-04': steps(2600), '2026-11-03': steps(2000), '2026-11-02': steps(5000) };
+    expect(activityStreak([], '2026-11-04', new Set(), health)).toEqual({ days: 1, doneToday: true });
+    expect(activityStreak([move('b', '2026-11-03')], '2026-11-04', new Set(), health)).toEqual({ days: 3, doneToday: true });
+    expect(activityDay([], '2026-11-03', health)).toBe('empty');
+    expect(activityDay([], '2026-11-02', health)).toBe('done');
+  });
 });
 
 describe('week marks', () => {

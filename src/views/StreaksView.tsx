@@ -35,7 +35,7 @@ export function useStreaks(): StreakInfo[] {
     const cheatToday = cheat.has(today);
     const onTarget = onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso), cheat);
     const home = homeStreak(data.logs, today, cheat);
-    const move = activityStreak(data.activities, today, cheat);
+    const move = activityStreak(data.activities, today, cheat, data.health);
     const targetOver = onTarget.today === 'over';
     return [
       {
@@ -75,10 +75,10 @@ export function useStreaks(): StreakInfo[] {
         note: cheatToday
           ? 'Cheat day today. A rest day won’t break it.'
           : !move.doneToday && move.days > 0
-            ? 'Add an activity today to keep it going.'
-            : 'Days in a row with any activity.',
+            ? 'Add an activity or walk over 2,000 steps today to keep it going.'
+            : 'Days in a row with an activity or over 2,000 steps.',
         warn: false,
-        result: withCheat(cheat, (iso) => activityDay(data.activities, iso)),
+        result: withCheat(cheat, (iso) => activityDay(data.activities, iso, data.health)),
       },
     ];
   }, [data, today]);

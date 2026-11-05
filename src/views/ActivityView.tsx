@@ -16,8 +16,8 @@ export function ActivityView() {
   const [saved, setSaved] = useState<string | null>(null);
 
   const cheat = cheatDates(health.data.cheatDays);
-  const streak = activityStreak(activities, today, cheat);
-  const marks = weekMarks(today, withCheat(cheat, (iso) => activityDay(activities, iso)), 'skipped');
+  const streak = activityStreak(activities, today, cheat, health.data.health);
+  const marks = weekMarks(today, withCheat(cheat, (iso) => activityDay(activities, iso, health.data.health)), 'skipped');
   const { start, end } = weekRange(today);
   const week = eachDate(start, end).map((iso) => ({
     iso,

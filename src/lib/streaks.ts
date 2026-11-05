@@ -1,5 +1,5 @@
 import { addDays, eachDate, weekRange } from './dates';
-import type { ActivityEntry, CheatDay, LogEntry } from '../types';
+import type { ActivityEntry, CheatDay, HealthDay, LogEntry } from '../types';
 
 export type WeekMark = 'done' | 'missed' | 'open' | 'skipped' | 'future' | 'cheat';
 export type DayResult = 'done' | 'missed' | 'empty' | 'cheat';
@@ -15,12 +15,21 @@ export function cheatInWeek(entries: CheatDay[], iso: string): string | null {
   return entries.map((entry) => entry.date).find((date) => date >= start && date <= end) ?? null;
 }
 
+export const ACTIVE_STEPS = 2000;
+
+function stepDays(health: Record<string, HealthDay>): string[] {
+  return Object.entries(health)
+    .filter(([, day]) => day.steps > ACTIVE_STEPS)
+    .map(([iso]) => iso);
+}
+
 export function activityStreak(
   activities: ActivityEntry[],
   today: string,
   cheat: ReadonlySet<string> = NONE,
+  health: Record<string, HealthDay> = {},
 ): { days: number; doneToday: boolean } {
-  const active = new Set(activities.map((entry) => entry.date));
+  const active = new Set([...activities.map((entry) => entry.date), ...stepDays(health)]);
   const doneToday = active.has(today);
   let count = 0;
   for (
@@ -65,8 +74,8 @@ export function homeDay(logs: LogEntry[], iso: string): DayResult {
   return day.some((log) => log.outside) ? 'missed' : 'done';
 }
 
-export function activityDay(activities: ActivityEntry[], iso: string): DayResult {
-  return activities.some((entry) => entry.date === iso) ? 'done' : 'empty';
+export function activityDay(activities: ActivityEntry[], iso: string, health: Record<string, HealthDay> = {}): DayResult {
+  return activities.some((entry) => entry.date === iso) || (health[iso]?.steps ?? 0) > ACTIVE_STEPS ? 'done' : 'empty';
 }
 
 export type DayStatus = 'over' | 'under' | 'empty' | 'cheat';

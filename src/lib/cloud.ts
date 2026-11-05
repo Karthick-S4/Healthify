@@ -117,6 +117,8 @@ async function readFileText(url: string, key: string): Promise<string | null> {
 type HealthEntry = { name: string; type: string; url: string; sha: string };
 
 const HEALTH_DIR = `https://api.github.com/repos/${REPO}/contents/health`;
+const KEEP_IMPORTED_MS = 2 * 24 * 60 * 60 * 1000;
+const healthTexts = new Map<string, string>();
 
 function parseHealthText(text: string): unknown {
   try {
@@ -132,7 +134,7 @@ function byFileTime(a: HealthEntry, b: HealthEntry): number {
   return at === bt ? (a.name < b.name ? -1 : 1) : at < bt ? -1 : 1;
 }
 
-export async function pullHealthFiles(skip: Set<string>, limit = 20): Promise<HealthFile[]> {
+export async function pullHealthFiles(imported: Set<string>, skip: Set<string> = imported, limit = 20): Promise<HealthFile[]> {
   const key = readSyncKey();
   if (!key) return [];
   const listing = await send(HEALTH_DIR, key);
@@ -143,25 +145,24 @@ export async function pullHealthFiles(skip: Set<string>, limit = 20): Promise<He
     .filter((entry) => entry.type === 'file' && (/\.(json|txt)$/i.test(entry.name) || !entry.name.includes('.')))
     .sort(byFileTime);
 
+  const cutoff = new Date(Date.now() - KEEP_IMPORTED_MS).toISOString();
+  const stale = usable.filter((entry) => imported.has(entry.name) && (healthFileTime(entry.name) ?? '') < cutoff);
+  const recent = usable.filter((entry) => !stale.includes(entry)).slice(-40);
+
   const texts = new Map<string, string>();
-  const stale: HealthEntry[] = [];
-  const byDay = new Map<string, HealthEntry[]>();
-  for (const entry of usable) {
-    const day = /(\d{4})-?(\d{2})-?(\d{2})/.exec(entry.name)?.slice(1).join('-');
-    if (day) byDay.set(day, [...(byDay.get(day) ?? []), entry]);
-  }
-  for (const group of byDay.values()) {
-    if (group.length < 2) continue;
-    const newest = new Map<string, HealthEntry>();
-    for (const entry of group) {
-      const text = await readFileText(entry.url, key);
-      if (text === null) continue;
-      texts.set(entry.name, text);
-      const who = readHealthFile(parseHealthText(text), entry.name).profile?.toLocaleLowerCase() ?? '';
-      const older = newest.get(who);
-      if (older) stale.push(older);
-      newest.set(who, entry);
-    }
+  const newest = new Map<string, HealthEntry>();
+  for (const entry of recent) {
+    const text = healthTexts.get(entry.sha) ?? (await readFileText(entry.url, key));
+    if (text === null) continue;
+    healthTexts.set(entry.sha, text);
+    texts.set(entry.name, text);
+    const result = readHealthFile(parseHealthText(text), entry.name);
+    const days = Object.keys(result.days).sort().join(',');
+    if (!days) continue;
+    const group = `${result.profile?.toLocaleLowerCase() ?? ''}|${days}`;
+    const older = newest.get(group);
+    if (older) stale.push(older);
+    newest.set(group, entry);
   }
   for (const entry of stale) {
     await send(`${HEALTH_DIR}/${encodeURIComponent(entry.name)}`, key, {

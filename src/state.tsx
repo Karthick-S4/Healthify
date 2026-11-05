@@ -179,8 +179,8 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       const next = mergeBooks(remote, current);
       return booksEqual(next, current) ? current : next;
     });
-    const skip = new Set([...importedHealthFiles(merged), ...healthSkip.current]);
-    const files = await pullHealthFiles(skip);
+    const imported = importedHealthFiles(merged);
+    const files = await pullHealthFiles(imported, new Set([...imported, ...healthSkip.current]));
     if (files.length > 0) {
       const { unmatched } = applyHealthFiles(merged, files);
       for (const name of unmatched) healthSkip.current.add(name);

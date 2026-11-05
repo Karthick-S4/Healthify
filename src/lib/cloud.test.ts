@@ -39,4 +39,18 @@ describe('pullHealthFiles', () => {
     expect(deleted).toEqual(['20261105-091500']);
     expect(files.map((file) => file.name)).toEqual(['20261104-210000', '20261105-120000', '20261105-211500.txt']);
   });
+
+  it('keeps the midnight file for yesterday when today’s files arrive, and clears old imported files', async () => {
+    vi.useFakeTimers({ now: new Date(2026, 10, 6, 14, 0) });
+    const deleted = fakeGitHub({
+      '20261101-210000': 'Profile: Niv\nSteps: 5000',
+      '20261106-000200': 'Profile: Niv\nDate: 2026-11-05\nSteps: 4200',
+      '20261106-090000': 'Profile: Niv\nSteps: 800',
+      '20261106-130000': 'Profile: Niv\nSteps: 3500',
+    });
+    const files = await pullHealthFiles(new Set(['20261101-210000']));
+    vi.useRealTimers();
+    expect(deleted.sort()).toEqual(['20261101-210000', '20261106-090000']);
+    expect(files.map((file) => file.name)).toEqual(['20261106-000200', '20261106-130000']);
+  });
 });

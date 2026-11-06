@@ -1,3 +1,5 @@
+import { useCountUp } from './useCountUp';
+
 type RingProps = {
   eaten: number;
   target: number;
@@ -27,7 +29,7 @@ export function Ring({ eaten, target, cheat = false }: RingProps) {
   const circumference = 2 * Math.PI * radius;
   const band = ringBand(eaten, target);
   const shown = target <= 0 ? 0 : Math.min(eaten / target, 1);
-  const dash = circumference * shown;
+  const dash = circumference * useCountUp(shown, 1400);
   return (
     <svg className="ring" viewBox="0 0 140 140" role="img" aria-label={`${Math.round(eaten)} of ${Math.round(target)} calories eaten`}>
       <defs>
@@ -49,13 +51,21 @@ export function Ring({ eaten, target, cheat = false }: RingProps) {
         </linearGradient>
       </defs>
       <circle className="ring-track" cx="70" cy="70" r={radius} />
-      {shown > 0 && (
+      {dash > 0.5 && (
         <circle
           className={cheat ? 'ring-value cheat' : `ring-value ${band}`}
           cx="70"
           cy="70"
           r={radius}
           strokeDasharray={`${dash} ${circumference}`}
+        />
+      )}
+      {dash > 0.5 && dash < circumference - 0.5 && (
+        <circle
+          className="ring-tip"
+          cx={70 + radius * Math.cos(dash / radius - Math.PI / 2)}
+          cy={70 + radius * Math.sin(dash / radius - Math.PI / 2)}
+          r="5"
         />
       )}
     </svg>

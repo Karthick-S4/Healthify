@@ -1,14 +1,16 @@
 import { useMemo, useState } from 'react';
-import { CheatToggle } from '../components/CheatToggle';
+import { CountUp } from '../components/CountUp';
 import { HeartMark } from '../components/Icons';
 import { BAND_NUM, Ring, ringBand } from '../components/Ring';
 import { StreakSummary } from '../components/StreakSummary';
 import { TrendChart } from '../components/TrendChart';
+import { WinsCard } from '../components/WinsCard';
 import { targetForDay } from '../lib/budget';
 import { addDays, formatLong, formatShort, todayISO, weekRange } from '../lib/dates';
 import { formatHours, formatKcal, formatTime, hoursWord } from '../lib/format';
 import { measureRank } from '../lib/measures';
 import { cheatDates } from '../lib/streaks';
+import { findWins } from '../lib/wins';
 import { useHealth } from '../state';
 
 type SummaryViewProps = {
@@ -39,7 +41,7 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
   const target = targetForDay(data, today);
   const eaten = data.logs.filter((log) => log.date === today).reduce((sum, log) => sum + log.kcal, 0);
 
-  const cheatToday = useMemo(() => cheatDates(data.cheatDays), [data.cheatDays]).has(today);
+  const cheatToday = useMemo(() => cheatDates(data.cheatDays, 'target'), [data.cheatDays]).has(today);
 
   const weights = useMemo(() => [...data.weights].sort((a, b) => (a.date < b.date ? -1 : 1)), [data.weights]);
   const latestWeight = weights[weights.length - 1];
@@ -59,6 +61,8 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
     await health.syncHealth();
     window.setTimeout(() => setSyncing(false), onIPhone ? 4000 : 0);
   };
+
+  const wins = useMemo(() => findWins(data, today), [data, today]);
 
   const parts = useMemo(() => {
     const latest = new Map<string, { part: string; cm: number; first: number; date: string }>();
@@ -101,13 +105,15 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
 
       <StreakSummary onOpen={() => onOpen('streaks')} />
 
-      <CheatToggle />
+      <WinsCard wins={wins} />
 
       <section className="card hero">
         <div className="hero-ring">
           <Ring eaten={eaten} target={target} cheat={cheatToday} />
           <div className="ring-copy">
-            <strong className={cheatToday ? 'cheat-num' : BAND_NUM[ringBand(eaten, target)]}>{formatKcal(eaten)}</strong>
+            <strong className={cheatToday ? 'cheat-num' : BAND_NUM[ringBand(eaten, target)]}>
+              <CountUp value={eaten} duration={1400} />
+            </strong>
             <span>{cheatToday ? 'kcal eaten' : `of ${formatKcal(target)}`}</span>
           </div>
         </div>
@@ -142,19 +148,21 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
           <button type="button" className="mv-open" onClick={() => onOpen('move')}>
             <span className="sr-fires">
               <span className="mv-item">
-                <b>{formatKcal(moved?.steps ?? 0)}</b>
+                <b>
+                  <CountUp value={moved?.steps ?? 0} />
+                </b>
                 <strong>Steps</strong>
               </span>
               <span className="mv-item">
                 <b>
-                  {formatKcal(moved?.activeKcal ?? 0)}
+                  <CountUp value={moved?.activeKcal ?? 0} />
                   <small> kcal</small>
                 </b>
                 <strong>Active calories</strong>
               </span>
               <span className="mv-item">
                 <b>
-                  {formatHours(moved?.standMin ?? 0)}
+                  <CountUp value={moved?.standMin ?? 0} format={formatHours} />
                   <small> {hoursWord(moved?.standMin ?? 0)}</small>
                 </b>
                 <strong>Standing</strong>
@@ -207,7 +215,7 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
                 <li key={part.part}>
                   <span>{part.part}</span>
                   <strong>{part.cm} cm</strong>
-                  {part.cm !== part.first && <em>{signed(part.cm - part.first, 'cm')}</em>}
+                  {part.cm !== part.first && <em className={part.cm < part.first ? 'down' : 'up'}>{signed(part.cm - part.first, 'cm')}</em>}
                 </li>
               ))}
             </ul>

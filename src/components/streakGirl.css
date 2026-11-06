@@ -1,0 +1,343 @@
+.girl {
+  width: 46px;
+  height: 69px;
+  overflow: visible;
+  flex: none;
+}
+.girl g,
+.girl path,
+.girl circle,
+.girl rect {
+  transform-box: view-box;
+}
+.girl {
+  --skin-line: color-mix(in srgb, var(--skin) 72%, #5a2e14);
+  --dress-shade: color-mix(in srgb, var(--dress) 72%, #2a0f1f);
+}
+.girl .g-shadow { fill: rgba(40, 20, 60, 0.12); }
+.girl .g-skin { fill: var(--skin); }
+.girl .g-skin-line { fill: var(--skin-line); stroke: var(--skin-line); stroke-width: 0.55; stroke-linejoin: round; }
+.girl .g-face { fill: var(--skin); stroke: var(--skin-line); stroke-width: 0.25; stroke-linejoin: round; }
+.girl .g-neck { fill: color-mix(in srgb, var(--skin) 86%, #5a2e14); }
+.girl .g-nose { fill: none; stroke: var(--skin-line); stroke-width: 0.45; stroke-linecap: round; }
+.girl .g-shoe { fill: var(--shoe); }
+.girl .g-skirt,
+.girl .g-bodice,
+.girl .g-sleeve { fill: var(--dress); stroke: var(--dress-shade); stroke-width: 0.3; stroke-linejoin: round; }
+.girl .g-skirt-fold { fill: none; stroke: var(--dress-shade); stroke-width: 0.45; stroke-linecap: round; opacity: 0.55; }
+.girl .g-neckline { fill: none; stroke: rgba(255, 255, 255, 0.7); stroke-width: 0.5; stroke-linecap: round; }
+.girl .g-waist { fill: var(--dress-shade); }
+.girl .g-pants { fill: var(--bottom); stroke: color-mix(in srgb, var(--bottom) 70%, #000); stroke-width: 0.25; stroke-linejoin: round; }
+.girl .g-stripe { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 0.45; stroke-linecap: round; }
+.girl .g-stripe.wide { stroke: rgba(255, 255, 255, 0.6); stroke-width: 0.9; }
+.girl .g-cuff { fill: color-mix(in srgb, var(--bottom) 75%, #000); }
+.girl .g-shoe.sneaker { fill: #fff; stroke: var(--shoe); stroke-width: 0.45; stroke-linejoin: round; }
+.girl .g-trim { fill: none; stroke: #f5c242; stroke-width: 0.6; stroke-linecap: round; }
+.girl .g-bead { fill: #f5c242; }
+.girl .g-logo { fill: rgba(255, 255, 255, 0.85); }
+.girl .g-hair { fill: var(--hair); }
+.girl .g-hair-tie { fill: var(--dress); }
+.girl .g-hair-shine { fill: none; stroke: rgba(255, 255, 255, 0.35); stroke-width: 0.6; stroke-linecap: round; }
+.girl .g-eye-white { fill: #fff; stroke: rgba(60, 30, 40, 0.25); stroke-width: 0.2; }
+.girl .g-iris { fill: #5a3424; }
+.girl .g-pupil { fill: #1b0f0c; }
+.girl .g-lid { fill: var(--skin); }
+.girl .g-lash { fill: none; stroke: #2a1a1f; stroke-width: 0.6; stroke-linecap: round; stroke-linejoin: round; }
+.girl .g-brow { fill: none; stroke: var(--hair); stroke-width: 0.55; stroke-linecap: round; }
+.girl .g-lip { fill: none; stroke: #c0485e; stroke-width: 0.6; stroke-linecap: round; stroke-linejoin: round; }
+.girl .g-mouth { fill: #a8324a; }
+.girl .g-mouth.pout { fill: #e0607a; }
+.girl .g-teeth { fill: #fff; }
+.girl .g-blush { fill: #ff8fa3; opacity: 0.5; }
+.girl .g-blush.puffed { opacity: 0.65; }
+.girl .g-stream { fill: none; stroke: #6ec6ff; stroke-width: 0.8; stroke-linecap: round; stroke-dasharray: 1.4 1; animation: gx-stream 0.8s linear infinite; }
+.girl .g-dumbbell rect { fill: #5b5b6e; }
+
+.girl .g-all { transform-origin: 24px 70px; }
+.girl .g-idle { transform-origin: 24px 58px; }
+.girl .g-torso { transform-origin: 24px 46px; }
+.girl .g-head,
+.girl .g-head-loop { transform-origin: 24px 22px; }
+.girl .g-upper,
+.girl .g-fore,
+.girl .g-thigh,
+.girl .g-shin,
+.girl .g-kick { transform-origin: 0 0; }
+.girl .g-upper-l { transform: rotate(10deg); }
+.girl .g-upper-r { transform: rotate(-10deg); }
+
+/* Happy: every part swings between its a and b pose. */
+.girl.happy .g-all { animation: gh-all var(--dur) var(--ease) infinite; }
+.girl.happy .g-idle { animation: gh-idle var(--dur) var(--ease) infinite; }
+.girl.happy .g-torso { animation: gh-torso var(--dur) var(--ease) infinite; }
+.girl.happy .g-head { animation: gh-head var(--dur) var(--ease) infinite; }
+.girl.happy .g-upper-l { animation: gh-ul var(--dur) var(--ease) infinite; }
+.girl.happy .g-fore-l { animation: gh-fl var(--dur) var(--ease) infinite; }
+.girl.happy .g-upper-r { animation: gh-ur var(--dur) var(--ease) infinite; }
+.girl.happy .g-fore-r { animation: gh-fr var(--dur) var(--ease) infinite; }
+.girl.happy .g-thigh-l { animation: gh-tl var(--dur) var(--ease) infinite; }
+.girl.happy .g-shin-l { animation: gh-sl var(--dur) var(--ease) infinite; }
+.girl.happy .g-thigh-r { animation: gh-tr var(--dur) var(--ease) infinite; }
+.girl.happy .g-shin-r { animation: gh-sr var(--dur) var(--ease) infinite; }
+.girl.happy .g-bicep { animation: gx-pulse var(--dur) var(--ease) infinite; transform-origin: center; transform-box: fill-box; }
+
+@keyframes gh-all { 0%, 100% { transform: var(--all-a); } 50% { transform: var(--all-b); } }
+@keyframes gh-idle { 0%, 100% { transform: var(--idle-a); } 50% { transform: var(--idle-b); } }
+@keyframes gh-torso { 0%, 100% { transform: var(--torso-a); } 50% { transform: var(--torso-b); } }
+@keyframes gh-head { 0%, 100% { transform: var(--head-a); } 50% { transform: var(--head-b); } }
+@keyframes gh-ul { 0%, 100% { transform: rotate(var(--ul-a)); } 50% { transform: rotate(var(--ul-b)); } }
+@keyframes gh-fl { 0%, 100% { transform: rotate(var(--fl-a)); } 50% { transform: rotate(var(--fl-b)); } }
+@keyframes gh-ur { 0%, 100% { transform: rotate(var(--ur-a)); } 50% { transform: rotate(var(--ur-b)); } }
+@keyframes gh-fr { 0%, 100% { transform: rotate(var(--fr-a)); } 50% { transform: rotate(var(--fr-b)); } }
+@keyframes gh-tl { 0%, 100% { transform: rotate(var(--tl-a)); } 50% { transform: rotate(var(--tl-b)); } }
+@keyframes gh-sl { 0%, 100% { transform: rotate(var(--sl-a)); } 50% { transform: rotate(var(--sl-b)); } }
+@keyframes gh-tr { 0%, 100% { transform: rotate(var(--tr-a)); } 50% { transform: rotate(var(--tr-b)); } }
+@keyframes gh-sr { 0%, 100% { transform: rotate(var(--sr-a)); } 50% { transform: rotate(var(--sr-b)); } }
+
+/* Sad: stand, droop, (sit), settle into the final pose, then loop gently. */
+.girl.sad .g-all { animation: gs-all 3.4s ease forwards; }
+.girl.sad .g-torso { animation: gs-torso 3.4s ease forwards; }
+.girl.sad .g-head { animation: gs-head 3.4s ease forwards; }
+.girl.sad .g-upper-l { animation: gs-ul 3.4s ease forwards; }
+.girl.sad .g-fore-l { animation: gs-fl 3.4s ease forwards; }
+.girl.sad .g-upper-r { animation: gs-ur 3.4s ease forwards; }
+.girl.sad .g-fore-r { animation: gs-fr 3.4s ease forwards; }
+.girl.sad .g-thigh-l { animation: gs-tl 3.4s ease forwards; }
+.girl.sad .g-shin-l { animation: gs-sl 3.4s ease forwards; }
+.girl.sad .g-thigh-r { animation: gs-tr 3.4s ease forwards; }
+.girl.sad .g-shin-r { animation: gs-sr 3.4s ease forwards; }
+.girl.sad .g-idle { animation: gl-idle var(--ldur) ease-in-out var(--ldelay) infinite alternate; }
+.girl.sad .g-head-loop { animation: gl-head var(--ldur) ease-in-out var(--ldelay) infinite alternate; }
+.girl.sad .g-kick { animation: gl-kick var(--ldur) ease-in-out var(--ldelay) infinite alternate; }
+.girl.sad .f-main { opacity: 0; animation: gx-face-in 3.4s ease forwards; }
+.girl.sad .f-start { animation: gx-face-out 3.4s ease forwards; }
+.girl.sad .g-fx { opacity: 0; animation: gx-face-in 3.4s ease forwards; }
+
+@keyframes gs-all { 0%, 35% { transform: none; } 65%, 100% { transform: var(--all); } }
+@keyframes gs-torso { 0%, 35% { transform: none; } 65%, 100% { transform: var(--torso); } }
+@keyframes gs-head { 0%, 12% { transform: none; } 32%, 100% { transform: var(--head); } }
+@keyframes gs-ul { 0%, 65% { transform: rotate(10deg); } 85%, 100% { transform: rotate(var(--ul)); } }
+@keyframes gs-fl { 0%, 65% { transform: rotate(0deg); } 85%, 100% { transform: rotate(var(--fl)); } }
+@keyframes gs-ur { 0%, 65% { transform: rotate(-10deg); } 85%, 100% { transform: rotate(var(--ur)); } }
+@keyframes gs-fr { 0%, 65% { transform: rotate(0deg); } 85%, 100% { transform: rotate(var(--fr)); } }
+@keyframes gs-tl { 0%, 35% { transform: rotate(0deg); } 65%, 100% { transform: rotate(var(--tl)); } }
+@keyframes gs-sl { 0%, 35% { transform: rotate(0deg); } 65%, 100% { transform: rotate(var(--sl)); } }
+@keyframes gs-tr { 0%, 35% { transform: rotate(0deg); } 65%, 100% { transform: rotate(var(--tr)); } }
+@keyframes gs-sr { 0%, 35% { transform: rotate(0deg); } 65%, 100% { transform: rotate(var(--sr)); } }
+@keyframes gl-idle { from { transform: var(--lidle-a); } to { transform: var(--lidle-b); } }
+@keyframes gl-head { from { transform: var(--lhead-a); } to { transform: var(--lhead-b); } }
+@keyframes gl-kick { from { transform: var(--lkick-a); } to { transform: var(--lkick-b); } }
+@keyframes gx-face-in { 0%, 22% { opacity: 0; } 32%, 100% { opacity: 1; } }
+@keyframes gx-face-out { 0%, 22% { opacity: 1; } 32%, 100% { opacity: 0; } }
+@keyframes gx-pulse { 50% { transform: scale(1.25); } }
+@keyframes gx-stream { to { stroke-dashoffset: -2.4; } }
+
+/* Hand props stay upright: they undo the arm's rotation. */
+.girl .g-hold { transform-origin: 0 0; }
+.girl.happy .g-hold-l { animation: gh-hold-l var(--dur) var(--ease) infinite; }
+.girl.happy .g-hold-r { animation: gh-hold-r var(--dur) var(--ease) infinite; }
+.girl.sad .g-hold-l { animation: gs-hold-l 3.4s ease forwards; }
+.girl.sad .g-hold-r { animation: gs-hold-r 3.4s ease forwards; }
+.girl.happy .g-pmove { animation: gh-pmove var(--dur) var(--ease) infinite; }
+@keyframes gh-hold-l { 0%, 100% { transform: rotate(calc(-1 * (var(--ul-a) + var(--fl-a)))); } 50% { transform: rotate(calc(-1 * (var(--ul-b) + var(--fl-b)))); } }
+@keyframes gh-hold-r { 0%, 100% { transform: rotate(calc(-1 * (var(--ur-a) + var(--fr-a)))); } 50% { transform: rotate(calc(-1 * (var(--ur-b) + var(--fr-b)))); } }
+@keyframes gs-hold-l { 0%, 65% { transform: rotate(-10deg); } 85%, 100% { transform: rotate(calc(-1 * (var(--ul) + var(--fl)))); } }
+@keyframes gs-hold-r { 0%, 65% { transform: rotate(10deg); } 85%, 100% { transform: rotate(calc(-1 * (var(--ur) + var(--fr)))); } }
+@keyframes gh-pmove { 0%, 100% { transform: var(--pm-a); } 50% { transform: var(--pm-b); } }
+
+.girl .hp-metal line { stroke: #a7b0ba; stroke-width: 0.8; stroke-linecap: round; }
+.girl .hp-metal ellipse { fill: #c9d1d9; }
+.girl .hp-green { fill: #5cb85c; }
+.girl .hp-water { fill: rgba(140, 210, 255, 0.75); stroke: #7fb8d8; stroke-width: 0.4; }
+.girl .hp-smoothie { fill: #ff8fc8; stroke: #e46aa8; stroke-width: 0.4; }
+.girl .hp-straw { stroke: #4c9df0; stroke-width: 0.6; stroke-linecap: round; }
+.girl .hp-bottle { fill: #6ec6ff; }
+.girl .hp-cap { fill: #2b6cb0; }
+.girl .hp-apple { fill: #e84a5f; }
+.girl .hp-handle { fill: #6b4a2b; }
+.girl .hp-blade { fill: #d7dde3; stroke: #a7b0ba; stroke-width: 0.3; }
+.girl .hp-plate { fill: #fff; stroke: #d5d9de; stroke-width: 0.5; }
+.girl .hp-food-a { fill: #ff9b42; }
+.girl .hp-food-b { fill: #f5c242; }
+.girl .hp-rice { fill: #fffaf0; stroke: #eadfca; stroke-width: 0.3; }
+.girl .hp-gold path, .girl .hp-gold rect { fill: #f5c242; }
+.girl .hp-gold .hp-gold-line { fill: none; stroke: #f5c242; stroke-width: 0.8; }
+.girl .hp-pole { stroke: #8a6a4a; stroke-width: 0.7; stroke-linecap: round; }
+.girl .hp-flag { fill: #ff5c8a; transform-box: fill-box; transform-origin: left center; animation: gx-flag 0.6s ease-in-out infinite alternate; }
+.girl .hp-string { fill: none; stroke: #9a8fa8; stroke-width: 0.4; }
+.girl .hp-balloon-body { fill: #ff6fa3; }
+.girl .hp-balloon { animation: gx-balloon 2s ease-in-out infinite; }
+.girl .hp-star { fill: #ffc83d; stroke: #f5a300; stroke-width: 0.4; transform-box: fill-box; transform-origin: center; animation: gx-spin 3s linear infinite; }
+.girl .hp-phone { fill: #333a4a; }
+.girl .hp-screen { fill: #9fe0ff; animation: gx-blink 1.4s ease-in-out infinite; }
+.girl .hp-popper { fill: #8e6cf0; stroke: #ffc83d; stroke-width: 0.6; stroke-dasharray: 1 1; }
+.girl .hp-umbrella { fill: #4c9df0; }
+.girl .hp-glove { fill: #e84a5f; stroke: #b42f43; stroke-width: 0.4; }
+
+.girl .pr-bowl { fill: #fff; stroke: #e2b07a; stroke-width: 0.6; }
+.girl .pr-hoop { fill: none; stroke: #ff5c8a; stroke-width: 1.4; animation: gx-hoop 0.5s ease-in-out infinite alternate; }
+.girl .pr-ribbon { fill: none; stroke: #4c9df0; stroke-width: 1.2; stroke-linejoin: round; }
+.girl .pr-medal { fill: #f5c242; stroke: #d99a00; stroke-width: 0.5; animation: gx-glint 1.6s ease-in-out infinite; }
+.girl .pr-towel { fill: #fff; stroke: #9fc9e8; stroke-width: 0.5; }
+.girl .pr-tape ellipse, .girl .pr-tape path { fill: none; stroke: #f5c242; stroke-width: 1.2; stroke-dasharray: 0.8 0.8; }
+.girl .pr-bar { stroke: #5b5b6e; stroke-width: 1.2; stroke-linecap: round; }
+.girl .pr-plate { fill: #333a4a; }
+.girl .pr-crown { fill: #f5c242; stroke: #d99a00; stroke-width: 0.4; stroke-linejoin: round; }
+.girl .pr-jewel { fill: #ff5c8a; }
+.girl .pr-rope { fill: none; stroke: #8e6cf0; stroke-width: 0.9; transform-origin: 24px 46px; animation: gx-rope var(--dur) linear infinite; }
+.girl .pr-pot { fill: #6b7380; }
+.girl .pr-pot-rim { fill: #8a93a0; }
+.girl .pr-pot-handle { stroke: #6b7380; stroke-width: 1.4; stroke-linecap: round; }
+.girl .pr-board { fill: #c08a55; }
+.girl .pr-bike circle, .girl .pr-bike path { fill: none; stroke: #5b5b6e; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+.girl .pr-bike .pr-frame { stroke: var(--dress); stroke-width: 1.4; }
+.girl .pr-seat { fill: #333a4a; }
+.girl .pr-wheel { animation: gx-spin 0.8s linear infinite; }
+.girl .pr-mat { fill: var(--dress); opacity: 0.35; }
+.girl .pr-belt { fill: #4a4f5c; }
+.girl .pr-belt-lines { stroke: #8a93a0; stroke-width: 0.6; stroke-dasharray: 2 2; animation: gx-belt 0.4s linear infinite; }
+.girl .pr-podium { fill: #f5c242; }
+.girl .pr-podium-num { font-size: 7px; font-weight: 800; fill: #fff; text-anchor: middle; }
+.girl .pr-scale { fill: #fff; stroke: #cbd5e1; stroke-width: 0.5; }
+.girl .pr-scale-screen { fill: #7ccf6b; animation: gx-blink 1.2s ease-in-out infinite; }
+.girl .pr-chart { fill: #fff; stroke: #cbd5e1; stroke-width: 0.5; }
+.girl .pr-chart-line { fill: none; stroke: #2a9a68; stroke-width: 0.8; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 16; animation: gx-draw 2s ease-in-out infinite; }
+.girl .pr-web { stroke: #c8c2cc; stroke-width: 0.3; }
+
+/* Outfit details */
+.girl .g-suit { fill: var(--dress); stroke: var(--dress-shade); stroke-width: 0.3; stroke-linejoin: round; }
+.girl .g-print { stroke: none; pointer-events: none; }
+.girl .g-ink { fill: var(--ink); }
+.girl .g-ink.soft { opacity: 0.6; }
+.girl .g-ink-center { fill: #ffd166; }
+.girl .g-hem { fill: none; stroke: rgba(255, 255, 255, 0.75); stroke-width: 0.5; stroke-dasharray: 0.6 0.5; }
+.girl .g-sash { fill: var(--bottom); }
+.girl .g-skirt.alt { fill: var(--bottom); stroke: color-mix(in srgb, var(--bottom) 70%, #000); }
+.girl .g-skirt-fold.alt { stroke: color-mix(in srgb, var(--bottom) 60%, #000); }
+.girl .g-belt { fill: color-mix(in srgb, var(--bottom) 55%, #1a1a1a); }
+.girl .g-buckle { fill: none; stroke: #f5c242; stroke-width: 0.35; }
+.girl .g-button { fill: var(--dress-shade); }
+.girl .g-button.light { fill: #f5c242; }
+.girl .g-strap { fill: none; stroke: var(--bottom); stroke-width: 1; stroke-linecap: round; }
+.girl .g-pocket { fill: none; stroke: rgba(0, 0, 0, 0.28); stroke-width: 0.35; stroke-linejoin: round; }
+.girl .g-hood { fill: var(--dress-shade); }
+.girl .g-string { fill: none; stroke: #fff; stroke-width: 0.35; stroke-linecap: round; }
+.girl .g-cuff-top { fill: var(--dress-shade); }
+
+/* Extra face details */
+.girl .g-heart-eye { fill: #ff3d6e; animation: gx-beat 0.8s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.girl .g-star-eye { fill: #ffc83d; stroke: #d48a00; stroke-width: 0.15; animation: gx-beat 1.2s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.girl .g-tongue { fill: #ff8a9a; }
+.girl .g-shy { fill: none; stroke: #e0607a; stroke-width: 0.3; stroke-linecap: round; }
+.girl .g-drop { fill: #8fd3ff; stroke: #4aa8e0; stroke-width: 0.15; }
+@keyframes gx-beat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+/* Effects */
+.girl .fx-notes text { font-size: 8px; fill: var(--dress); animation: gx-float 1.8s ease-out infinite; }
+.girl .fx-notes text:nth-child(2) { animation-delay: 0.9s; }
+.girl .fx-sparkles path { fill: #ffc83d; transform-origin: center; transform-box: fill-box; animation: gx-twinkle 1.4s ease-in-out infinite; }
+.girl .fx-sparkles g:nth-child(2) path { animation-delay: 0.35s; }
+.girl .fx-sparkles g:nth-child(3) path { animation-delay: 0.7s; fill: #ff8fc8; }
+.girl .fx-sparkles g:nth-child(4) path { animation-delay: 1.05s; fill: #7fd8ff; }
+.girl .fx-confetti rect { animation: gx-fall 1.4s linear infinite; transform-origin: center; transform-box: fill-box; }
+.girl .fx-confetti rect:nth-child(3n) { fill: #ff5c8a; }
+.girl .fx-confetti rect:nth-child(3n + 1) { fill: #ffc83d; }
+.girl .fx-confetti rect:nth-child(3n + 2) { fill: #4cc9f0; }
+.girl .fx-hearts path { fill: #ff5c8a; animation: gx-float 2s ease-out infinite; }
+.girl .fx-hearts g:nth-child(2) path { animation-delay: 1s; }
+.girl .fx-check circle { fill: #3fb37f; }
+.girl .fx-check path { fill: none; stroke: #fff; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+.girl .fx-check { animation: gx-pop 1.8s ease-in-out infinite; }
+.girl .fx-glow { fill: #ffd86b; opacity: 0.3; transform-origin: 24px 36px; animation: gx-glow 1.8s ease-in-out infinite; }
+.girl .fx-sigh circle { fill: #c9d6e3; animation: gx-sigh 2.6s ease-out infinite; }
+.girl .fx-sigh circle:nth-child(2) { animation-delay: 1.3s; }
+.girl .fx-cloud path:first-child { fill: #b8c2cf; }
+.girl .fx-cloud.storm path:first-child { fill: #7d8796; }
+.girl .fx-cloud { animation: gx-drift 3s ease-in-out infinite alternate; }
+.girl .fx-drops line { stroke: #6ec6ff; stroke-width: 0.9; stroke-linecap: round; animation: gx-drop 0.9s linear infinite; }
+.girl .fx-drops line:nth-child(2) { animation-delay: 0.3s; }
+.girl .fx-drops line:nth-child(3) { animation-delay: 0.6s; }
+.girl .fx-bolt { fill: #ffd84a; animation: gx-flash 2.4s steps(1) infinite; }
+.girl .fx-tears path { fill: #6ec6ff; animation: gx-tear 1.6s ease-in infinite; }
+.girl .fx-tears path:nth-child(2) { animation-delay: 0.8s; }
+.girl .fx-dots rect { fill: #fff; stroke: #d7cde0; stroke-width: 0.6; }
+.girl .fx-dots circle { fill: #9b8aa8; animation: gx-blink 1.2s ease-in-out infinite; }
+.girl .fx-dots circle:nth-of-type(2) { animation-delay: 0.2s; }
+.girl .fx-dots circle:nth-of-type(3) { animation-delay: 0.4s; }
+.girl .fx-zzz text { font-size: 5px; font-weight: 700; fill: #8f84b8; animation: gx-float 2.4s ease-out infinite; }
+.girl .fx-zzz text:nth-child(2) { font-size: 6px; animation-delay: 0.8s; }
+.girl .fx-zzz text:nth-child(3) { font-size: 7px; animation-delay: 1.6s; }
+.girl .fx-smoke-girl circle { fill: #b9b4bd; animation: gx-smoke 2.4s ease-out infinite; }
+.girl .fx-smoke-girl circle:nth-child(2) { animation-delay: 0.8s; }
+.girl .fx-smoke-girl circle:nth-child(3) { animation-delay: 1.6s; }
+.girl .fx-question text { font-size: 9px; font-weight: 800; fill: #8f84b8; animation: gx-bob 1.6s ease-in-out infinite; }
+.girl .fx-sweat { fill: #8fd3ff; animation: gx-sweat 2s ease-in infinite; }
+.girl .fx-pebble { fill: #9a8f87; animation: gx-roll 1.6s ease-out var(--ldelay) infinite; }
+.girl .fx-dust circle { fill: #d8cfc6; animation: gx-dust 1.5s ease-out infinite; }
+.girl .fx-dust circle:nth-child(2) { animation-delay: 0.75s; }
+.girl .fx-puff { fill: #e9e3ef; animation: gx-glow 1.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+
+.girl .g-shine { fill: #fff; }
+.girl .g-mouth.chew { transform-box: fill-box; transform-origin: center; animation: gx-chew 0.5s ease-in-out infinite; }
+.girl .fx-smoke-girl.burnt circle { fill: #5b5560; }
+.girl .fx-rainbow path { fill: none; stroke-width: 2.4; opacity: 0.55; }
+.girl .fx-rainbow { transform-origin: 24px 34px; animation: gx-rainbow 2.4s ease-in-out infinite; }
+.girl .fx-steam path { fill: none; stroke: #cfd8e3; stroke-width: 0.9; stroke-linecap: round; animation: gx-steam 2s ease-out infinite; }
+.girl .fx-steam path:nth-child(2) { animation-delay: 0.6s; }
+.girl .fx-steam path:nth-child(3) { animation-delay: 1.2s; }
+.girl .fx-footprints ellipse { fill: color-mix(in srgb, var(--shoe) 45%, transparent); animation: gx-blink 0.9s ease-in-out infinite; }
+.girl .fx-footprints ellipse:nth-child(2) { animation-delay: 0.45s; }
+.girl .fx-speed path { stroke: #b9b4c8; stroke-width: 0.9; stroke-linecap: round; animation: gx-speed 0.6s linear infinite; }
+.girl .fx-burst { fill: none; stroke-width: 0.9; stroke-linecap: round; transform-origin: 0 0; animation: gx-burst 1.4s ease-out infinite; }
+.girl .fx-leaves ellipse { fill: #5cb85c; transform-box: fill-box; transform-origin: center; animation: gx-leaf 0.9s ease-out infinite; }
+.girl .fx-roti { fill: #e6b86a; stroke: #c48a3a; stroke-width: 0.4; transform-box: fill-box; transform-origin: center; animation: gx-roti var(--dur) ease-in-out infinite; }
+.girl .fx-dream circle { fill: #fff; stroke: #d7cde0; stroke-width: 0.5; }
+.girl .fx-dream-cloud { fill: #fff; stroke: #d7cde0; stroke-width: 0.5; }
+.girl .fx-dream { animation: gx-bob 2.4s ease-in-out infinite; }
+.girl .fd-bun { fill: #e6a24a; }
+.girl .fd-green { fill: #5cb85c; }
+.girl .fd-patty { fill: #8a4a17; }
+.girl .fd-pizza { fill: #f5c242; stroke: #e2932a; stroke-width: 0.5; }
+.girl .fd-cake { fill: #ff8fc8; }
+.girl .fd-cream { fill: #fff; }
+.girl .fx-growl path { fill: none; stroke: #9b8aa8; stroke-width: 0.8; stroke-linecap: round; animation: gx-blink 0.6s ease-in-out infinite; }
+.girl .fx-splash path { fill: #6ec6ff; animation: gx-float 1.4s ease-out infinite; }
+
+@keyframes gx-flag { from { transform: skewY(-8deg) scaleX(1); } to { transform: skewY(6deg) scaleX(0.85); } }
+@keyframes gx-balloon { 0%, 100% { transform: translate(0, 0) rotate(-4deg); } 50% { transform: translate(0, -1px) rotate(4deg); } }
+@keyframes gx-spin { to { transform: rotate(360deg); } }
+@keyframes gx-hoop { from { transform: translateX(-2px); } to { transform: translateX(2px); } }
+@keyframes gx-glint { 0%, 100% { opacity: 1; } 50% { opacity: 0.75; } }
+@keyframes gx-rope { 0% { transform: scaleY(1); } 50% { transform: scaleY(-1); } 100% { transform: scaleY(1); } }
+@keyframes gx-belt { to { stroke-dashoffset: 4; } }
+@keyframes gx-draw { 0% { stroke-dashoffset: 16; } 50%, 100% { stroke-dashoffset: 0; } }
+@keyframes gx-chew { 50% { transform: scale(0.6, 0.5); } }
+@keyframes gx-rainbow { 0%, 100% { opacity: 0.5; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.03); } }
+@keyframes gx-steam { 0% { transform: translateY(0); opacity: 0; } 30% { opacity: 0.9; } 100% { transform: translateY(-8px); opacity: 0; } }
+@keyframes gx-speed { 0% { transform: translateX(4px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateX(-6px); opacity: 0; } }
+@keyframes gx-burst { 0% { transform: scale(0.2); opacity: 0; } 30% { opacity: 1; } 100% { transform: scale(1.4); opacity: 0; } }
+@keyframes gx-leaf { 0% { transform: translateY(0) rotate(0); opacity: 0; } 25% { opacity: 1; } 50% { transform: translateY(-7px) rotate(120deg); } 100% { transform: translateY(0) rotate(240deg); opacity: 0; } }
+@keyframes gx-roti { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-14px) scaleY(-1); } }
+@keyframes gx-float { 0% { transform: translateY(4px); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(-10px); opacity: 0; } }
+@keyframes gx-twinkle { 0%, 100% { transform: scale(0.3); opacity: 0.2; } 50% { transform: scale(1.15); opacity: 1; } }
+@keyframes gx-fall { 0% { transform: translateY(0) rotate(0); opacity: 1; } 100% { transform: translateY(44px) rotate(320deg); opacity: 0; } }
+@keyframes gx-pop { 0%, 100% { transform: translate(38px, 9px) scale(0.85); } 50% { transform: translate(38px, 9px) scale(1.1); } }
+@keyframes gx-glow { 0%, 100% { transform: scale(0.85); opacity: 0.2; } 50% { transform: scale(1.05); opacity: 0.45; } }
+@keyframes gx-sigh { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 20% { opacity: 0.9; } 100% { transform: translate(5px, -4px) scale(1.8); opacity: 0; } }
+@keyframes gx-drift { from { transform: translate(22px, 0); } to { transform: translate(26px, 0); } }
+@keyframes gx-drop { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(12px); opacity: 0; } }
+@keyframes gx-flash { 0%, 70%, 80%, 100% { opacity: 0; } 72%, 78% { opacity: 1; } }
+@keyframes gx-tear { 0% { transform: translateY(0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translateY(9px); opacity: 0; } }
+@keyframes gx-blink { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@keyframes gx-smoke { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 25% { opacity: 0.7; } 100% { transform: translate(-3px, -14px) scale(1.8); opacity: 0; } }
+@keyframes gx-bob { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(-2px) rotate(8deg); } }
+@keyframes gx-sweat { 0% { transform: translateY(0); opacity: 0; } 25% { opacity: 1; } 100% { transform: translateY(5px); opacity: 0; } }
+@keyframes gx-roll { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(9px); opacity: 0; } }
+@keyframes gx-dust { 0% { transform: scale(0.4); opacity: 0.9; } 100% { transform: translateY(-3px) scale(1.6); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .girl *,
+  .girl .g-fx { animation-duration: 0.01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+}

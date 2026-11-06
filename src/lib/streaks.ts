@@ -1,35 +1,28 @@
 import { addDays, eachDate, weekRange } from './dates';
-import type { ActivityEntry, CheatDay, HealthDay, LogEntry } from '../types';
+import type { ActivityEntry, CheatDay, CheatKind, LogEntry } from '../types';
 
 export type WeekMark = 'done' | 'missed' | 'open' | 'skipped' | 'future' | 'cheat';
 export type DayResult = 'done' | 'missed' | 'empty' | 'cheat';
 
 const NONE: ReadonlySet<string> = new Set();
 
-export function cheatDates(entries: CheatDay[]): Set<string> {
-  return new Set(entries.map((entry) => entry.date));
+export const CHEAT_LIMITS: Record<CheatKind, number> = { target: 1, home: 2, move: 2 };
+
+export function cheatDates(entries: CheatDay[], kind: CheatKind): Set<string> {
+  return new Set(entries.filter((entry) => !entry.kind || entry.kind === kind).map((entry) => entry.date));
 }
 
-export function cheatInWeek(entries: CheatDay[], iso: string): string | null {
+export function cheatsInWeek(entries: CheatDay[], kind: CheatKind, iso: string): string[] {
   const { start, end } = weekRange(iso);
-  return entries.map((entry) => entry.date).find((date) => date >= start && date <= end) ?? null;
-}
-
-export const ACTIVE_STEPS = 2000;
-
-function stepDays(health: Record<string, HealthDay>): string[] {
-  return Object.entries(health)
-    .filter(([, day]) => day.steps > ACTIVE_STEPS)
-    .map(([iso]) => iso);
+  return [...cheatDates(entries, kind)].filter((date) => date >= start && date <= end).sort();
 }
 
 export function activityStreak(
   activities: ActivityEntry[],
   today: string,
   cheat: ReadonlySet<string> = NONE,
-  health: Record<string, HealthDay> = {},
 ): { days: number; doneToday: boolean } {
-  const active = new Set([...activities.map((entry) => entry.date), ...stepDays(health)]);
+  const active = new Set(activities.map((entry) => entry.date));
   const doneToday = active.has(today);
   let count = 0;
   for (
@@ -74,8 +67,8 @@ export function homeDay(logs: LogEntry[], iso: string): DayResult {
   return day.some((log) => log.outside) ? 'missed' : 'done';
 }
 
-export function activityDay(activities: ActivityEntry[], iso: string, health: Record<string, HealthDay> = {}): DayResult {
-  return activities.some((entry) => entry.date === iso) || (health[iso]?.steps ?? 0) > ACTIVE_STEPS ? 'done' : 'empty';
+export function activityDay(activities: ActivityEntry[], iso: string): DayResult {
+  return activities.some((entry) => entry.date === iso) ? 'done' : 'empty';
 }
 
 export type DayStatus = 'over' | 'under' | 'empty' | 'cheat';

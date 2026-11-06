@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { emptyShared, freshData, normalizeBook } from './storage';
-import { activityDay, activityStreak, cheatInWeek, homeDay, homeStreak, onTargetStreak, weekMarks, withCheat } from './streaks';
+import { CHEAT_LIMITS, activityDay, activityStreak, cheatDates, cheatsInWeek, homeDay, homeStreak, onTargetStreak, weekMarks, withCheat } from './streaks';
 import { mergeBooks } from './sync';
-import type { ActivityEntry, CheatDay, LogEntry, ProfileBook } from '../types';
+import type { ActivityEntry, CheatDay, CheatKind, LogEntry, ProfileBook } from '../types';
 
 function meal(date: string, kcal: number, outside = false): LogEntry {
   return { id: `${date}-${kcal}-${outside}`, date, title: 'Meal', grams: 100, kcal, outside, createdAt: `${date}T08:00:00.000Z` };
@@ -12,8 +12,9 @@ function move(date: string): ActivityEntry {
   return { id: `move-${date}`, date, name: 'Walking', minutes: 20, createdAt: `${date}T06:00:00.000Z` };
 }
 
-function cheatDay(id: string, date: string): CheatDay {
-  return { id, date, createdAt: `${date}T07:00:00.000Z` };
+function cheatDay(id: string, date: string, kind?: CheatKind): CheatDay {
+  const entry: CheatDay = { id, date, createdAt: `${date}T07:00:00.000Z` };
+  return kind ? { ...entry, kind } : entry;
 }
 
 const target = () => 1500;
@@ -58,10 +59,36 @@ describe('cheat day', () => {
     expect(moves[1].mark).toBe('cheat');
   });
 
-  it('allows one per Monday to Sunday week', () => {
-    const entries = [cheatDay('c1', '2026-11-02')];
-    expect(cheatInWeek(entries, '2026-11-08')).toBe('2026-11-02');
-    expect(cheatInWeek(entries, '2026-11-09')).toBeNull();
+  it('counts cheats per streak in each Monday to Sunday week', () => {
+    expect(CHEAT_LIMITS).toEqual({ target: 1, home: 2, move: 2 });
+    const entries = [cheatDay('c1', '2026-11-02', 'move'), cheatDay('c2', '2026-11-05', 'move'), cheatDay('c3', '2026-11-04', 'target')];
+    expect(cheatsInWeek(entries, 'move', '2026-11-08')).toEqual(['2026-11-02', '2026-11-05']);
+    expect(cheatsInWeek(entries, 'target', '2026-11-08')).toEqual(['2026-11-04']);
+    expect(cheatsInWeek(entries, 'home', '2026-11-08')).toEqual([]);
+    expect(cheatsInWeek(entries, 'move', '2026-11-09')).toEqual([]);
+  });
+
+  it('only protects the streak the cheat was for', () => {
+    const entries = [cheatDay('c1', '2026-11-04', 'target')];
+    const logs = [meal('2026-11-03', 1200), meal('2026-11-04', 3000, true)];
+    expect(onTargetStreak(logs, '2026-11-04', target, cheatDates(entries, 'target'))).toMatchObject({ days: 1, today: 'cheat' });
+    expect(homeStreak(logs, '2026-11-04', cheatDates(entries, 'home')).brokeToday).toBe(true);
+    expect(cheatDates(entries, 'move').size).toBe(0);
+  });
+
+  it('treats an old cheat day without a streak as covering all three', () => {
+    const entries = [cheatDay('c1', '2026-11-04')];
+    for (const kind of ['target', 'home', 'move'] as const) {
+      expect(cheatDates(entries, kind).has('2026-11-04')).toBe(true);
+      expect(cheatsInWeek(entries, kind, '2026-11-06')).toEqual(['2026-11-04']);
+    }
+  });
+
+  it('keeps the streak name when saved and loaded', () => {
+    const data = freshData();
+    data.cheatDays = [cheatDay('c1', '2026-11-04', 'home'), cheatDay('c2', '2026-11-03')];
+    const saved = normalizeBook({ version: 1, profiles: [{ id: 'p', name: 'Priya', updatedAt: 'x', data }] });
+    expect(saved.profiles[0].data.cheatDays).toEqual(data.cheatDays);
   });
 
   it('syncs a cheat day to other devices and syncs turning it off', () => {

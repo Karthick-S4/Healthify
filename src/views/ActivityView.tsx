@@ -1,23 +1,29 @@
 import { useMemo, useState, type FormEvent } from 'react';
+import { CheatCard } from '../components/CheatToggle';
 import { WeekStars, weekDone } from '../components/WeekStars';
 import { addDays, eachDate, formatLong, formatShort, formatWeekday, todayISO, weekRange } from '../lib/dates';
 import { formatKcal } from '../lib/format';
 import { activityDay, activityStreak, cheatDates, weekMarks, withCheat } from '../lib/streaks';
 import { useHealth } from '../state';
 
+const OTHER = 'Other';
+const ACTIVITY_KINDS = ['Walking', 'Running', OTHER] as const;
+type ActivityKind = (typeof ACTIVITY_KINDS)[number];
+
 export function ActivityView() {
   const health = useHealth();
   const today = todayISO();
   const activities = health.data.activities;
+  const [kind, setKind] = useState<ActivityKind>('Walking');
   const [name, setName] = useState('');
   const [minutes, setMinutes] = useState('');
   const [date, setDate] = useState(today);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
-  const cheat = cheatDates(health.data.cheatDays);
-  const streak = activityStreak(activities, today, cheat, health.data.health);
-  const marks = weekMarks(today, withCheat(cheat, (iso) => activityDay(activities, iso, health.data.health)), 'skipped');
+  const cheat = cheatDates(health.data.cheatDays, 'move');
+  const streak = activityStreak(activities, today, cheat);
+  const marks = weekMarks(today, withCheat(cheat, (iso) => activityDay(activities, iso)), 'skipped');
   const { start, end } = weekRange(today);
   const week = eachDate(start, end).map((iso) => ({
     iso,
@@ -47,7 +53,7 @@ export function ActivityView() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault();
-    const clean = name.trim();
+    const clean = kind === OTHER ? name.trim() : kind;
     const count = Number(minutes);
     if (!clean) {
       setError('Write what you did, like walking or yoga.');
@@ -78,25 +84,50 @@ export function ActivityView() {
         </header>
 
         <form className="composer" onSubmit={onSubmit}>
-          <label className="field-label" htmlFor="activity-name">
+          <label className="field-label" htmlFor="activity-kind">
             Activity
           </label>
-          <input
-            id="activity-name"
-            value={name}
-            autoCapitalize="sentences"
-            list="activity-names"
+          <select
+            id="activity-kind"
+            value={kind}
             onChange={(event) => {
-              setName(event.target.value);
+              setKind(event.target.value as ActivityKind);
               setError(null);
               setSaved(null);
             }}
-          />
-          <datalist id="activity-names">
-            {past.map((item) => (
-              <option key={item} value={item} />
+          >
+            {ACTIVITY_KINDS.map((item) => (
+              <option key={item} value={item}>
+                {item === OTHER ? 'Other…' : item}
+              </option>
             ))}
-          </datalist>
+          </select>
+          {kind === OTHER && (
+            <>
+              <label className="field-label" htmlFor="activity-name">
+                What did you do?
+              </label>
+              <input
+                id="activity-name"
+                value={name}
+                autoCapitalize="sentences"
+                list="activity-names"
+                placeholder="Yoga, cycling, dance…"
+                onChange={(event) => {
+                  setName(event.target.value);
+                  setError(null);
+                  setSaved(null);
+                }}
+              />
+              <datalist id="activity-names">
+                {past
+                  .filter((item) => !ACTIVITY_KINDS.includes(item as ActivityKind))
+                  .map((item) => (
+                    <option key={item} value={item} />
+                  ))}
+              </datalist>
+            </>
+          )}
           <div className="two-fields">
             <div>
               <label className="field-label" htmlFor="activity-minutes">
@@ -111,15 +142,6 @@ export function ActivityView() {
               <input id="activity-date" type="date" max={today} value={date} onChange={(event) => setDate(event.target.value || today)} />
             </div>
           </div>
-          {past.length > 0 && (
-            <div className="alt-row" aria-label="Recent activities">
-              {past.slice(0, 4).map((item) => (
-                <button key={item} type="button" className={name === item ? 'pill pick on' : 'pill pick'} onClick={() => setName(item)}>
-                  {item}
-                </button>
-              ))}
-            </div>
-          )}
           <button className="primary" type="submit">
             Add activity
           </button>
@@ -141,6 +163,7 @@ export function ActivityView() {
             {streak.doneToday ? 'Today counts. Keep it going tomorrow.' : streak.days > 0 ? 'Move a little today to keep the streak.' : 'Any activity today starts a streak.'}
           </p>
         </section>
+        <CheatCard kinds={['move']} />
       </div>
 
       <div className="today-log">

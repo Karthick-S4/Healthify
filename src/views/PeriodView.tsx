@@ -54,7 +54,7 @@ export function PeriodView({ onOpenMore }: PeriodViewProps) {
   const selectedLogs = byDay.get(selected) ?? [];
   const selectedEaten = selectedLogs.reduce((sum, log) => sum + log.kcal, 0);
   const selectedTarget = targetForDay(health.data, selected);
-  const cheat = useMemo(() => cheatDates(health.data.cheatDays), [health.data.cheatDays]);
+  const cheat = useMemo(() => cheatDates(health.data.cheatDays, 'target'), [health.data.cheatDays]);
   const selectedTone = toneFor(selectedEaten, selectedTarget, selectedLogs.length > 0, cheat.has(selected));
   const isCurrent = report.start <= today && today <= report.end;
   const title =

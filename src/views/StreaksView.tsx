@@ -22,6 +22,7 @@ export type StreakInfo = {
   id: 'target' | 'home' | 'move';
   title: string;
   days: number;
+  cheat: boolean;
   note: string;
   warn: boolean;
   result: (iso: string) => DayResult;
@@ -31,24 +32,24 @@ export function useStreaks(): StreakInfo[] {
   const { data } = useHealth();
   const today = todayISO();
   return useMemo(() => {
-    const cheat = cheatDates(data.cheatDays);
-    const cheatToday = cheat.has(today);
-    const onTarget = onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso), cheat);
-    const home = homeStreak(data.logs, today, cheat);
-    const move = activityStreak(data.activities, today, cheat, data.health);
+    const cheat = { target: cheatDates(data.cheatDays, 'target'), home: cheatDates(data.cheatDays, 'home'), move: cheatDates(data.cheatDays, 'move') };
+    const onTarget = onTargetStreak(data.logs, today, (iso) => targetForDay(data, iso), cheat.target);
+    const home = homeStreak(data.logs, today, cheat.home);
+    const move = activityStreak(data.activities, today, cheat.move);
     const targetOver = onTarget.today === 'over';
     return [
       {
         id: 'target',
         title: 'Calorie target',
         days: onTarget.days,
-        note: cheatToday
+        cheat: cheat.target.has(today),
+        note: cheat.target.has(today)
           ? 'Cheat day today. The streak is safe.'
           : targetOver
             ? 'Over today’s target, so the count starts again tomorrow.'
             : 'Days in a row at or under your calorie target.',
         warn: targetOver,
-        result: withCheat(cheat, (iso) => {
+        result: withCheat(cheat.target, (iso) => {
           const day = onTargetDay(data.logs, iso, targetForDay(data, iso));
           return iso === today && day === 'done' ? 'empty' : day;
         }),
@@ -57,13 +58,14 @@ export function useStreaks(): StreakInfo[] {
         id: 'home',
         title: 'Home meals',
         days: home.days,
-        note: cheatToday
+        cheat: cheat.home.has(today),
+        note: cheat.home.has(today)
           ? 'Cheat day today. Eating out won’t break it.'
           : home.brokeToday
             ? 'Ate out today, so the count starts again tomorrow.'
             : 'Days in a row with only home food.',
         warn: home.brokeToday,
-        result: withCheat(cheat, (iso) => {
+        result: withCheat(cheat.home, (iso) => {
           const day = homeDay(data.logs, iso);
           return iso === today && day === 'done' ? 'empty' : day;
         }),
@@ -72,13 +74,14 @@ export function useStreaks(): StreakInfo[] {
         id: 'move',
         title: 'Activity',
         days: move.days,
-        note: cheatToday
+        cheat: cheat.move.has(today),
+        note: cheat.move.has(today)
           ? 'Cheat day today. A rest day won’t break it.'
           : !move.doneToday && move.days > 0
-            ? 'Add an activity or walk over 2,000 steps today to keep it going.'
-            : 'Days in a row with an activity or over 2,000 steps.',
+            ? 'Add an activity today to keep it going.'
+            : 'Days in a row with any activity.',
         warn: false,
-        result: withCheat(cheat, (iso) => activityDay(data.activities, iso, data.health)),
+        result: withCheat(cheat.move, (iso) => activityDay(data.activities, iso)),
       },
     ];
   }, [data, today]);

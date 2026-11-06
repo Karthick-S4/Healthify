@@ -1,12 +1,12 @@
 import { newId } from './lib/id';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { applyHealthFiles, importedHealthFiles, logFinishedWalks } from './lib/appleHealth';
+import { applyHealthFiles, importedHealthFiles } from './lib/appleHealth';
 import { captureLinkKey, deviceLink, pullDiary, pullHealthFiles, pushDiary, readSyncKey, saveSyncKey, type PullResult } from './lib/cloud';
 import { todayISO } from './lib/dates';
 import { allFoods, sharedTweakOn } from './lib/foods';
 import { FIRST_DAY, freshData, isProfileName, loadBook, normalizeBook, saveBook, SESSION_KEY } from './lib/storage';
 import { booksEqual, liftFoods, mergeBooks } from './lib/sync';
-import type { AppData, CustomRange, Food, FoodTweak, LogEntry, MealSlot, ProfileBook, ProfileRecord, SharedFoods } from './types';
+import type { AppData, CheatKind, CustomRange, Food, FoodTweak, LogEntry, MealSlot, ProfileBook, ProfileRecord, SharedFoods } from './types';
 
 type NewLog = Omit<LogEntry, 'id' | 'createdAt'>;
 type Targets = { daily: number; week: number | null; month: number | null };
@@ -66,7 +66,7 @@ type HealthApi = {
   addMeasure: (date: string, part: string, cm: number) => void;
   addActivity: (date: string, name: string, minutes: number) => string;
   removeEntries: (ids: string[]) => void;
-  setCheatDay: (date: string, on: boolean) => void;
+  setCheatDay: (date: string, kind: CheatKind, on: boolean) => void;
   addIdea: (title: string, query: string, slot: MealSlot) => void;
   removeIdea: (title: string, customId?: string) => void;
   restoreIdeas: () => void;
@@ -170,7 +170,6 @@ export function HealthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = useCallback(async (): Promise<SyncStatus> => {
-    setBook((current) => logFinishedWalks(current));
     const result = await pullDiary();
     setSync(statusOf(result));
     if (result.kind !== 'ok') return statusOf(result);
@@ -189,7 +188,6 @@ export function HealthProvider({ children }: { children: ReactNode }) {
       setHealthIssue(unmatched.length > 0);
       setBook((current) => applyHealthFiles(current, files).book);
     }
-    setBook((current) => logFinishedWalks(current));
     return 'ok';
   }, []);
 
@@ -556,18 +554,24 @@ export function HealthProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateData]);
 
-  const setCheatDay = useCallback((date: string, on: boolean) => {
+  const setCheatDay = useCallback((date: string, kind: CheatKind, on: boolean) => {
     updateData((current) => {
-      const same = current.cheatDays.filter((entry) => entry.date === date);
+      const covering = current.cheatDays.filter((entry) => entry.date === date && (!entry.kind || entry.kind === kind));
+      const createdAt = new Date().toISOString();
       if (on) {
-        if (same.length > 0) return current;
-        return { ...current, cheatDays: [...current.cheatDays, { id: newId(), date, createdAt: new Date().toISOString() }] };
+        if (covering.length > 0) return current;
+        return { ...current, cheatDays: [...current.cheatDays, { id: newId(), date, createdAt, kind }] };
       }
-      if (same.length === 0) return current;
+      if (covering.length === 0) return current;
+      const keep = covering.some((entry) => !entry.kind)
+        ? (['target', 'home', 'move'] as const)
+            .filter((other) => other !== kind && !current.cheatDays.some((entry) => entry.date === date && entry.kind === other))
+            .map((other) => ({ id: newId(), date, createdAt, kind: other }))
+        : [];
       return {
         ...current,
-        cheatDays: current.cheatDays.filter((entry) => entry.date !== date),
-        removedLogIds: unique([...current.removedLogIds, ...same.map((entry) => entry.id)]),
+        cheatDays: [...current.cheatDays.filter((entry) => !covering.includes(entry)), ...keep],
+        removedLogIds: unique([...current.removedLogIds, ...covering.map((entry) => entry.id)]),
       };
     });
   }, [updateData]);

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { HeartMark, IconBack, IconBody, IconFood, IconMore, IconMove, IconSummary } from './components/Icons';
-import { PullIndicator, usePullToRefresh } from './components/PullToRefresh';
+import { PullIndicator, REFRESHED_EVENT, usePullToRefresh } from './components/PullToRefresh';
 import { HealthProvider, useHealth } from './state';
 import { ActivityView } from './views/ActivityView';
 import { BodyView } from './views/BodyView';
@@ -66,6 +66,7 @@ function Shell() {
       return;
     }
     await refreshNow();
+    window.dispatchEvent(new Event(REFRESHED_EVENT));
   }, [refreshNow]);
   const pulled = usePullToRefresh(mainRef, pullRefresh, !typing && Boolean(health.profileId) && goalSet);
 

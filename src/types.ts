@@ -61,10 +61,14 @@ export type HealthDay = {
   updatedAt: string;
 };
 
+export type CheatKind = 'target' | 'home' | 'move';
+
 export type CheatDay = {
   id: string;
   date: string;
   createdAt: string;
+  /** Missing on entries from before per-streak cheats; those cover every streak. */
+  kind?: CheatKind;
 };
 
 export type MealSlot = 'morning' | 'midday' | 'snack' | 'evening';

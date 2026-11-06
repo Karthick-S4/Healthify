@@ -1,6 +1,7 @@
 import { newId } from '../lib/id';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { CheatToggle } from '../components/CheatToggle';
+import { CheatCard } from '../components/CheatToggle';
+import { CountUp } from '../components/CountUp';
 import { MealEditor } from '../components/MealEditor';
 import { MealGroups } from '../components/MealGroups';
 import { MealPicker } from '../components/MealPicker';
@@ -27,7 +28,7 @@ type TodayViewProps = {
 };
 
 function targetNote(streak: OnTargetStreak): string {
-  if (streak.today === 'cheat') return 'Cheat day. Targets, eating out and activity don’t count against your streaks today.';
+  if (streak.today === 'cheat') return 'Calorie cheat day. Going over won’t break your streak today.';
   if (streak.today === 'over') {
     return streak.ended > 0
       ? `Over today. That ends a ${streak.ended} day streak unless a meal is removed.`
@@ -114,10 +115,10 @@ export function TodayView({ onOpenIdeas, onOpenMore, startAdding = false }: Toda
   const dayLogs = health.data.logs.filter((log) => log.date === day);
   const target = targetForDay(health.data, today);
   const eaten = reports.day.eaten;
-  const cheat = cheatDates(health.data.cheatDays);
+  const cheat = cheatDates(health.data.cheatDays, 'target');
   const cheatToday = cheat.has(today);
   const targetStreak = onTargetStreak(health.data.logs, today, (iso) => targetForDay(health.data, iso), cheat);
-  const home = homeStreak(health.data.logs, today, cheat);
+  const home = homeStreak(health.data.logs, today, cheatDates(health.data.cheatDays, 'home'));
   const weekDays = useMemo(() => {
     const range = weekRange(today);
     return eachDate(range.start, range.end);
@@ -371,13 +372,15 @@ export function TodayView({ onOpenIdeas, onOpenMore, startAdding = false }: Toda
           <small>{home.brokeToday ? 'today' : home.days === 1 ? 'day' : 'days'}</small>
         </button>
       </div>
-      <CheatToggle />
+      <CheatCard kinds={['target', 'home']} />
       <p className="note">{targetNote(targetStreak)}</p>
 
       <div className="ring-block">
         <Ring eaten={eaten} target={target} cheat={cheatToday} />
         <div className="ring-copy">
-          <strong className={cheatToday ? 'cheat-num' : BAND_NUM[ringBand(eaten, target)]}>{formatKcal(eaten)}</strong>
+          <strong className={cheatToday ? 'cheat-num' : BAND_NUM[ringBand(eaten, target)]}>
+            <CountUp value={eaten} duration={1400} />
+          </strong>
           <span>{cheatToday ? 'kcal eaten' : `of ${formatKcal(target)}`}</span>
         </div>
       </div>

@@ -62,7 +62,9 @@ function entryBase(value: unknown): { id: string; date: string; createdAt: strin
 
 function asCheatDay(value: unknown): CheatDay | null {
   const base = entryBase(value);
-  return base ? { id: base.id, date: base.date, createdAt: base.createdAt } : null;
+  if (!base) return null;
+  const kind = base.raw.kind;
+  return kind === 'target' || kind === 'home' || kind === 'move' ? { id: base.id, date: base.date, createdAt: base.createdAt, kind } : { id: base.id, date: base.date, createdAt: base.createdAt };
 }
 
 const SLOTS: MealSlot[] = ['morning', 'midday', 'snack', 'evening'];
@@ -306,7 +308,7 @@ export function normalizeData(value: unknown): AppData {
     logs: Array.isArray(data.logs) ? data.logs.map(asLog).filter((log): log is LogEntry => log !== null) : [],
     weights: listOf(data.weights, asWeight),
     measures: listOf(data.measures, asMeasure),
-    activities: listOf(data.activities, asActivity),
+    activities: listOf(data.activities, asActivity).filter((entry) => !entry.id.startsWith('apple-steps-')),
     health: asHealthDays(data.health),
     healthFiles: asIds(data.healthFiles),
     cheatDays: listOf(data.cheatDays, asCheatDay),

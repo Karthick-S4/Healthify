@@ -6,6 +6,8 @@ const HOLD = 56;
 
 type Phase = 'idle' | 'pulling' | 'ready' | 'refreshing';
 
+export const REFRESHED_EVENT = 'nivfit:refreshed';
+
 export function usePullToRefresh(target: RefObject<HTMLElement | null>, onRefresh: () => Promise<void>, enabled = true) {
   const [pull, setPull] = useState(0);
   const [phase, setPhase] = useState<Phase>('idle');

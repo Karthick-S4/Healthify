@@ -921,6 +921,10 @@ button.mv-open { display: flex; flex-direction: column; gap: 12px; width: 100%; 
 .star-day.cheat path.lettuce, .cheat-icon path.lettuce { fill: none; stroke: #5bb04f; stroke-width: 1.8; stroke-linecap: round; filter: none; }
 .star-day.cheat .patty, .cheat-icon .patty { fill: #7a4127; }
 .star-day.cheat svg { filter: drop-shadow(0 2px 3px rgba(122, 65, 39, 0.3)); }
+.cheat-toggle { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow), inset 0 1px 0 var(--glass-shine); }
+.cheat-toggle.on { background: color-mix(in srgb, var(--cheat) 16%, var(--glass)); border-color: color-mix(in srgb, var(--cheat) 45%, transparent); }
+.cheat-toggle.used .cheat-icon { filter: grayscale(1); opacity: 0.55; }
+.cheat-toggle.on .cheat-copy strong { color: var(--cheat-ink); }
 .cheat-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 20px; background: var(--glass); border: 1px solid var(--glass-edge); box-shadow: var(--shadow), inset 0 1px 0 var(--glass-shine); }
 .cheat-card.on { background: color-mix(in srgb, var(--cheat) 10%, var(--glass)); border-color: color-mix(in srgb, var(--cheat) 35%, transparent); }
 .cheat-head { display: flex; align-items: center; gap: 10px; }

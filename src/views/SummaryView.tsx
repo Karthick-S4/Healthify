@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { CheatToggle } from '../components/CheatToggle';
 import { CountUp } from '../components/CountUp';
 import { HeartMark } from '../components/Icons';
 import { BAND_NUM, Ring, ringBand } from '../components/Ring';
@@ -106,6 +107,8 @@ export function SummaryView({ onOpen, onLogFood }: SummaryViewProps) {
       <StreakSummary onOpen={() => onOpen('streaks')} />
 
       <WinsCard wins={wins} />
+
+      <CheatToggle />
 
       <section className="card hero">
         <div className="hero-ring">

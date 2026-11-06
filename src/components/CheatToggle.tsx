@@ -49,6 +49,45 @@ function CheatRow({ kind, day }: { kind: CheatKind; day: string }) {
   );
 }
 
+const KINDS: CheatKind[] = ['target', 'home', 'move'];
+
+export function CheatToggle() {
+  const health = useHealth();
+  const today = todayISO();
+  const states = KINDS.map((kind) => ({ kind, ...cheatState(health.data.cheatDays, kind, today) }));
+  const on = states.every((state) => state.on);
+  const blocked = states.filter((state) => state.full);
+  const usedUp = blocked.map((state) => LABEL[state.kind]).join(' and ');
+
+  function toggle() {
+    for (const state of states) {
+      if (on) health.setCheatDay(today, state.kind, false);
+      else if (!state.on) health.setCheatDay(today, state.kind, true);
+    }
+  }
+
+  return (
+    <div className={on ? 'cheat-toggle on' : blocked.length ? 'cheat-toggle used' : 'cheat-toggle'}>
+      <span className="cheat-icon">
+        <StarIcon mark="cheat" />
+      </span>
+      <span className="cheat-copy">
+        <strong>{on ? 'Cheat day today' : 'Cheat day'}</strong>
+        <small>
+          {on
+            ? 'Eat out, skip the workout, go over. All three streaks stay safe today.'
+            : blocked.length
+              ? `${usedUp} cheat used up this week. Hold a flame above to cheat the others one by one.`
+              : 'Turns all three streaks to cheat for today.'}
+        </small>
+      </span>
+      <button type="button" role="switch" className="switch" aria-checked={on} aria-label="Cheat day today, all three streaks" disabled={!on && blocked.length > 0} onClick={toggle}>
+        <span />
+      </button>
+    </div>
+  );
+}
+
 export function CheatCard({ kinds }: { kinds: CheatKind[] }) {
   const health = useHealth();
   const today = todayISO();
